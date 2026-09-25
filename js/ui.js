@@ -8,9 +8,22 @@ import { formatRedamanSummary } from './lensa.js';
 
 // ─── SLA Timer helpers ────────────────────────────────────────────────────────
 
-function getElapsedMs(reportedAt) {
-  if (!reportedAt) return null;
-  return Date.now() - new Date(reportedAt).getTime();
+function getElapsedMs(ticket) {
+  if (!ticket) return null;
+  if (ticket.reported_at) {
+    const t = new Date(ticket.reported_at).getTime();
+    if (!isNaN(t)) return Date.now() - t;
+  }
+  // Fallback: ekstrak "XX.XX Jam" dari rest atau raw_input
+  const sourceText = `${ticket.rest || ''} ${ticket.raw_input || ''}`;
+  const m = sourceText.match(/(\d+(?:\.\d+)?)\s*Jam/i);
+  if (m) {
+    const hours = parseFloat(m[1]);
+    const createdAtMs = ticket.created_at ? new Date(ticket.created_at).getTime() : Date.now();
+    const timeSinceCreated = Date.now() - createdAtMs;
+    return (hours * 3600000) + timeSinceCreated;
+  }
+  return null;
 }
 
 function formatDuration(ms) {
@@ -48,9 +61,9 @@ function formatLastUpdated(dateStr) {
  * className: 'sla-green' | 'sla-yellow' | 'sla-red' | 'sla-overdue'
  */
 function getSlaInfo(ticket) {
-  if (!ticket.reported_at) return null;
+  const elapsedMs = getElapsedMs(ticket);
+  if (elapsedMs === null) return null;
 
-  const elapsedMs = getElapsedMs(ticket.reported_at);
   const elapsedMin = elapsedMs / 60000;
 
   // Cek apakah sudah lewat SLA deadline
@@ -273,20 +286,33 @@ function renderAllTickets(tickets, filter = {}) {
   const sortMode = filter.sort || 'ttr_desc';
   list.sort((a, b) => {
     if (sortMode === 'ttr_desc') {
-      // TTR terlama = reported_at paling lampau duluan (paling mendekati / lewat SLA)
-      const tA = a.reported_at ? new Date(a.reported_at).getTime() : (a.created_at ? new Date(a.created_at).getTime() : 0);
-      const tB = b.reported_at ? new Date(b.reported_at).getTime() : (b.created_at ? new Date(b.created_at).getTime() : 0);
-      return tA - tB;
+      // TTR terlama = jam berjalan paling banyak di paling atas
+      const msA = getElapsedMs(a) ?? -1;
+      const msB = getElapsedMs(b) ?? -1;
+      return msB - msA;
     } else if (sortMode === 'ttr_asc') {
-      // TTR terbaru = reported_at paling baru duluan
-      const tA = a.reported_at ? new Date(a.reported_at).getTime() : (a.created_at ? new Date(a.created_at).getTime() : 0);
-      const tB = b.reported_at ? new Date(b.reported_at).getTime() : (b.created_at ? new Date(b.created_at).getTime() : 0);
-      return tB - tA;
-    } else if (sortMode === 'tier') {
+      // TTR terbaru = jam berjalan paling sedikit di paling atas
+      const msA = getElapsedMs(a) ?? 9999999999;
+      const msB = getElapsedMs(b) ?? 9999999999;
+      return msA - msB;
+    } else if (sortMode === 'tier_desc' || sortMode === 'tier') {
+      // Tier tertinggi: DIAMOND, PLATINUM, GOLD, INDIBIZ, REGULER
       const tierRank = { HVC_DIAMOND: 1, HVC_PLATINUM: 2, HVC_GOLD: 3, INDIBIZ: 4, REGULER: 5 };
       const rA = tierRank[a.tier] || 99;
       const rB = tierRank[b.tier] || 99;
-      return rA - rB;
+      if (rA !== rB) return rA - rB;
+      const msA = getElapsedMs(a) ?? -1;
+      const msB = getElapsedMs(b) ?? -1;
+      return msB - msA;
+    } else if (sortMode === 'tier_asc') {
+      // Tier terendah: REGULER, INDIBIZ, GOLD, PLATINUM, DIAMOND
+      const tierRankAsc = { REGULER: 1, INDIBIZ: 2, HVC_GOLD: 3, HVC_PLATINUM: 4, HVC_DIAMOND: 5 };
+      const rA = tierRankAsc[a.tier] || 99;
+      const rB = tierRankAsc[b.tier] || 99;
+      if (rA !== rB) return rA - rB;
+      const msA = getElapsedMs(a) ?? -1;
+      const msB = getElapsedMs(b) ?? -1;
+      return msB - msA;
     } else if (sortMode === 'created_desc') {
       const tA = a.created_at ? new Date(a.created_at).getTime() : 0;
       const tB = b.created_at ? new Date(b.created_at).getTime() : 0;
@@ -519,14 +545,13 @@ function modalRekap(ticket) {
 
 // ─── Update SLA timers (dipanggil setiap menit) ───────────────────────────────
 
-function updateAllTimers() {
+function updateAllTimers(allTickets = []) {
   document.querySelectorAll('.sla-timer').forEach(el => {
-    const reported  = el.dataset.reported;
-    const deadline  = el.dataset.deadline || null;
-    if (!reported) return;
+    const id = el.dataset.id;
+    const ticket = allTickets.find(t => t.id === id);
+    if (!ticket) return;
 
-    const ticket = { reported_at: reported, sla_deadline: deadline };
-    const sla    = getSlaInfo(ticket);
+    const sla = getSlaInfo(ticket);
     if (!sla) return;
 
     el.textContent = `⏱️ ${sla.label}`;

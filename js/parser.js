@@ -100,13 +100,22 @@ function parseSingleBlock(text, isWO = false) {
     }
   }
 
+  let reported_at = f.reported_at;
+  if (!reported_at) {
+    const jamM = text.match(/(\d+(?:\.\d+)?)\s*Jam/i);
+    if (jamM) {
+      const hours = parseFloat(jamM[1]);
+      reported_at = new Date(Date.now() - hours * 3600 * 1000).toISOString();
+    }
+  }
+
   return {
     inc:          f.inc,
     inet:         f.inet,
     odp:          f.odp,
     tier:         f.tier,
     rest,
-    reported_at:  f.reported_at,
+    reported_at,
     sla_deadline: f.sla_deadline,
     status:       'open',
     raw_input:    text.trim(),
