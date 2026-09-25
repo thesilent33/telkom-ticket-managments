@@ -1,5 +1,5 @@
 /**
- * app.js — Main controller: init, event handling, realtime
+ * app.js — Main controller: init, event handling, realtime, ukur semua
  */
 
 import { parseTickets } from './parser.js';
@@ -13,8 +13,34 @@ import {
 } from './ui.js';
 
 // ─── State ────────────────────────────────────────────────────────────────────
-let tickets      = [];   // array of ticket objects (local cache)
-let activeFilter = { status: 'all', tier: 'all', sort: 'ttr_desc' };
+let tickets        = [];   // array of ticket objects (local cache)
+let activeFilter   = { status: 'all', tier: 'all', sort: 'ttr_desc' };
+let isMeasuringAll = false;
+
+// ─── Helper: Get tickets matching active filter ──────────────────────────────
+function getFilteredTickets() {
+  let list = [...tickets];
+  if (activeFilter.status && activeFilter.status !== 'all') {
+    list = list.filter(t => t.status === activeFilter.status);
+  }
+  if (activeFilter.tier && activeFilter.tier !== 'all') {
+    list = list.filter(t => t.tier === activeFilter.tier);
+  }
+  return list;
+}
+
+// ─── Update count on "Ukur Semua" button ──────────────────────────────────────
+function updateUkurAllButton() {
+  const btn = document.getElementById('btn-ukur-all');
+  const countEl = document.getElementById('ukur-all-count');
+  if (!btn || !countEl) return;
+
+  const targets = getFilteredTickets().filter(t => t.inet);
+  countEl.textContent = targets.length;
+  if (!isMeasuringAll) {
+    btn.disabled = targets.length === 0;
+  }
+}
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 async function init() {
@@ -23,6 +49,7 @@ async function init() {
     tickets = await fetchTickets();
     renderAllTickets(tickets, activeFilter);
     updateStats(tickets);
+    updateUkurAllButton();
   } catch (e) {
     showToast('❌ Gagal memuat tiket dari Supabase. Cek config.js!', 'error');
     console.error(e);
@@ -47,6 +74,7 @@ async function init() {
       document.querySelectorAll('[data-filter-status]').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       renderAllTickets(tickets, activeFilter);
+      updateUkurAllButton();
     });
   });
 
@@ -57,6 +85,7 @@ async function init() {
       document.querySelectorAll('[data-filter-tier]').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       renderAllTickets(tickets, activeFilter);
+      updateUkurAllButton();
     });
   });
 
@@ -68,6 +97,12 @@ async function init() {
       activeFilter.sort = e.target.value;
       renderAllTickets(tickets, activeFilter);
     });
+  }
+
+  // Tombol Ukur Semua
+  const btnUkurAll = document.getElementById('btn-ukur-all');
+  if (btnUkurAll) {
+    btnUkurAll.addEventListener('click', handleUkurSemua);
   }
 }
 
@@ -84,6 +119,7 @@ function handleRealtimeChange({ eventType, old: oldRow, new: newRow }) {
       tickets.push(newRow);
       renderAllTickets(tickets, activeFilter);
       updateStats(tickets);
+      updateUkurAllButton();
     }
   } else if (eventType === 'UPDATE') {
     const idx = tickets.findIndex(t => t.id === newRow.id);
@@ -94,10 +130,12 @@ function handleRealtimeChange({ eventType, old: oldRow, new: newRow }) {
     }
     updateCardInPlace(newRow);
     updateStats(tickets);
+    updateUkurAllButton();
   } else if (eventType === 'DELETE') {
     tickets = tickets.filter(t => t.id !== oldRow.id);
     removeCard(oldRow.id);
     updateStats(tickets);
+    updateUkurAllButton();
   }
 }
 
@@ -155,6 +193,7 @@ async function handleAddTicket() {
       });
       renderAllTickets(tickets, activeFilter);
       updateStats(tickets);
+      updateUkurAllButton();
     }
     showToast(`✅ ${parsed.length} tiket berhasil ditambahkan!`, 'success');
   } catch (err) {
@@ -188,7 +227,7 @@ function updateParsePreview(text) {
     </div>`).join('');
 }
 
-// ─── Action: Ukur Redaman ─────────────────────────────────────────────────────
+// ─── Action: Ukur Redaman (Single) ────────────────────────────────────────────
 async function handleUkur(ticket) {
   if (!ticket?.inet) {
     showToast('❌ Tiket ini tidak memiliki nomor iNetID.', 'error');
@@ -230,6 +269,81 @@ async function handleUkur(ticket) {
     showToast(`❌ Gagal ukur redaman: ${err.message || 'Cek URL n8n di config.js.'}`, 'error');
     setUkurLoading(ticket.id, false);
   }
+}
+
+// ─── Action: Ukur Semua (Terisolasi tiap Filter) ──────────────────────────────
+async function handleUkurSemua() {
+  if (isMeasuringAll) return;
+
+  const targets = getFilteredTickets().filter(t => t.inet);
+  if (targets.length === 0) {
+    showToast('⚠️ Tidak ada tiket ber-iNetID pada filter yang aktif.', 'warning');
+    return;
+  }
+
+  const statusLabel = activeFilter.status === 'all' ? 'Semua' : activeFilter.status.toUpperCase();
+  const tierLabel   = activeFilter.tier === 'all'   ? 'Semua' : activeFilter.tier;
+
+  showModal(`
+    <h3 class="modal-title">📡 Ukur Semua Redaman</h3>
+    <p class="modal-subtitle">Filter Aktif: Status [<b>${statusLabel}</b>] · Tier [<b>${tierLabel}</b>]</p>
+    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px; margin:12px 0; font-size:0.86rem; color:#334155;">
+      Akan mengukur redaman untuk <b>${targets.length} tiket</b> secara berurutan.<br>
+      <span style="font-size:0.78rem; color:#64748b;">(Tiap pengukuran butuh waktu ~15-30 detik ke server i-booster Telkom)</span>
+    </div>
+  `, {
+    confirmLabel: `📡 Mulai Ukur (${targets.length})`,
+    cancelLabel: 'Batal',
+    onConfirm: async () => {
+      isMeasuringAll = true;
+      const btn = document.getElementById('btn-ukur-all');
+      if (btn) btn.disabled = true;
+
+      let successCount = 0;
+      for (let i = 0; i < targets.length; i++) {
+        const t = targets[i];
+        if (btn) {
+          btn.innerHTML = `<span>⏳</span><span>${i + 1}/${targets.length}</span>`;
+        }
+        setUkurLoading(t.id, true);
+
+        try {
+          const result = await ukurRedaman(t.inet);
+          if (result && result.success) {
+            const changes = {
+              onu_sn:        result.onu_sn        ?? null,
+              onu_status:    result.onu_status    ?? null,
+              onu_rx:        result.onu_rx        ?? null,
+              olt_rx:        result.olt_rx        ?? null,
+              onu_rx_status: result.onu_rx_status ?? null,
+              olt_rx_status: result.olt_rx_status ?? null,
+              acs_status:    result.acs_status    ?? null,
+              pcrf:          result.pcrf          ?? null,
+              gpon:          result.gpon          ?? null,
+              result_text:   result.result_text   ?? null,
+              redaman_at:    new Date().toISOString(),
+            };
+            const updated = await updateTicket(t.id, changes);
+            const idx = tickets.findIndex(x => x.id === t.id);
+            if (idx !== -1) tickets[idx] = updated;
+            updateCardInPlace(updated);
+            successCount++;
+          }
+        } catch (err) {
+          console.error(`Gagal ukur tiket ${t.inc}:`, err);
+        } finally {
+          setUkurLoading(t.id, false);
+        }
+      }
+
+      isMeasuringAll = false;
+      if (btn) {
+        btn.innerHTML = `<span>📡</span><span>Ukur Semua (<span id="ukur-all-count">${targets.length}</span>)</span>`;
+      }
+      updateUkurAllButton();
+      showToast(`✅ Selesai mengukur ${successCount} dari ${targets.length} tiket!`, 'success');
+    }
+  });
 }
 
 // ─── Action: Toggle Done ──────────────────────────────────────────────────────
@@ -381,6 +495,7 @@ function handleDelete(ticket) {
         tickets = tickets.filter(t => t.id !== ticket.id);
         removeCard(ticket.id);
         updateStats(tickets);
+        updateUkurAllButton();
         showToast('🗑️ Tiket dihapus', 'info');
       } catch (err) {
         showToast('❌ Gagal menghapus', 'error');

@@ -98,6 +98,21 @@ function renderTierBadge(tier) {
 
 // ─── Redaman display ──────────────────────────────────────────────────────────
 
+function extractOntType(ticket) {
+  if (ticket.onu_tipe) return ticket.onu_tipe;
+  const raw = ticket.result_text || '';
+  if (!raw) return '';
+  const lines = raw.split('\n');
+  const snLine = lines.find(l => l.includes('SN ONT') || l.includes('onu sn'));
+  if (!snLine) return '';
+  const idx = snLine.indexOf('(', snLine.indexOf('SN ONT') > -1 ? snLine.indexOf('SN ONT') : 0);
+  const lastIdx = snLine.lastIndexOf(')');
+  if (idx !== -1 && lastIdx > idx) {
+    return snLine.substring(idx + 1, lastIdx).trim();
+  }
+  return '';
+}
+
 function renderRedaman(ticket) {
   const summary = formatRedamanSummary(ticket);
   if (!summary && !ticket.redaman_at) {
@@ -105,10 +120,7 @@ function renderRedaman(ticket) {
   }
 
   // Tipe ONT jika ada di result_text atau onu_tipe
-  const tipeMatch = ticket.onu_tipe ||
-    ticket.result_text?.match(/SN ONT:.*?<\/code>\s*(?:\(([^)]+(?:\([^)]+\))?[^)]*)\))/i)?.[1] ||
-    ticket.result_text?.match(/SN ONT:[^(]*\(([^)]+(?:\([^)]+\))?[^)]*)\)/i)?.[1];
-  const tipeOnt = tipeMatch ? tipeMatch.trim() : '';
+  const tipeOnt = extractOntType(ticket);
 
   const snHtml = ticket.onu_sn
     ? `<div class="redaman-sn">🔌 SN: <code>${ticket.onu_sn}</code>${tipeOnt ? ` <span class="ont-tipe">(${tipeOnt})</span>` : ''}</div>`
@@ -168,15 +180,15 @@ function renderActions(ticket) {
   const isKendala = ticket.status === 'kendala';
 
   const ukurLabel    = (ticket.onu_status || ticket.redaman_at) ? '📶 Ukur Ulang' : '📶 Ukur';
-  const doneLabel    = isDone    ? '↩️ Unmark'       : '✅ Selesai';
-  const kendalaLabel = isKendala ? '↩️ Batal Kendala' : '⚠️ Kendala';
+  const doneLabel    = isDone    ? '↩️ Unmark' : '✅ Selesai';
+  const kendalaLabel = isKendala ? '↩️ Batal'  : '⚠️ Kendala';
 
   return `
     <div class="card-actions">
-      <button class="btn-action btn-ukur"    data-action="ukur"    data-id="${id}">${ukurLabel}</button>
-      <button class="btn-action btn-done"    data-action="done"    data-id="${id}">${doneLabel}</button>
-      <button class="btn-action btn-kendala" data-action="kendala" data-id="${id}">${kendalaLabel}</button>
-      <button class="btn-action btn-rekap"   data-action="rekap"   data-id="${id}">📋 Rekap</button>
+      <button class="btn-action btn-ukur"    data-action="ukur"    data-id="${id}" title="${ukurLabel}">${ukurLabel}</button>
+      <button class="btn-action btn-done"    data-action="done"    data-id="${id}" title="${doneLabel}">${doneLabel}</button>
+      <button class="btn-action btn-kendala" data-action="kendala" data-id="${id}" title="${kendalaLabel}">${kendalaLabel}</button>
+      <button class="btn-action btn-rekap"   data-action="rekap"   data-id="${id}" title="Rekap Tiket">📋 Rekap</button>
     </div>`;
 }
 
