@@ -1,0 +1,1815 @@
+{
+  "name": "Ticket Manager Bot v18",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message",
+          "callback_query"
+        ],
+        "additionalFields": {}
+      },
+      "id": "1cad567d-4cd3-42e4-8871-6c1972feac49",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        480,
+        1936
+      ],
+      "webhookId": "REPLACE_WEBHOOK_UUID",
+      "credentials": {
+        "telegramApi": {
+          "id": "pagGDH8KV4LR0q7Z",
+          "name": "Technician Helper II"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c1",
+              "name": "BOT_TOKEN",
+              "value": "8753614153:AAFORf4UDzZgj0z817TpCQ7m72BjOSwF7IM",
+              "type": "string"
+            },
+            {
+              "id": "c2",
+              "name": "LENSA_TOKEN",
+              "value": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL2xlbnNhLnRhY2MuaWQvYXBpL2xvZ2luIiwiaWF0IjoxNzI4NjIwODczLCJuYmYiOjE3Mjg2MjA4NzMsImp0aSI6IjFjQk9NOXIxbDZtbkVoV0kiLCJzdWIiOiIxIiwicHJ2IjoiMjNiZDVjODk0OWY2MDBhZGIzOWU3MDFjNDAwODcyZGI3YTU5NzZmNyJ9.QF0GB9-RcQ5YMfxeF6sjHPJQDDXM_Qa6NMnNCsm8VoQ",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "be651c3f-e9c2-4874-8cb1-94ab4765b4a8",
+      "name": "🔧 Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        720,
+        1936
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "sw1",
+                    "leftValue": "={{ $json.message }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "object",
+                      "operation": "notEmpty",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Pesan Baru"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "sw2",
+                    "leftValue": "={{ $json.callback_query }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "object",
+                      "operation": "notEmpty",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Callback"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "82e4482d-5491-428f-8dac-f0a83e73da6b",
+      "name": "🚦 Msg vs Callback",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        960,
+        1936
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nfunction buildMsgText(ls) {\n  return ls.map((l, i) => {\n    const inc  = l.inc  ? '<code>' + l.inc  + '</code>' : '';\n    const inet = l.inet ? '<code>' + l.inet + '</code>' : '';\n    const odp  = l.odp  ? '<code>' + l.odp  + '</code>' : '';\n    const tier = l.tier || '';\n    const rest = l.rest || '';\n    const parts = [inc, inet, odp, tier, rest].filter(Boolean);\n    const lineStr = parts.join(' | ');\n    const redStr = l.redaman !== null ? l.redaman : '<i>Belum diukur</i>';\n    const snStr  = l.sn ? '\\n   🔌 SN: <code>' + l.sn + '</code>' : '';\n    let progStr;\n    if (l.done) {\n      progStr = '✅ <b>Selesai</b>';\n      if (l.perbaikan) {\n        progStr += ': <i>' + l.perbaikan + '</i>';\n        if (l.penyebab) progStr += ' (<i>' + l.penyebab + '</i>)';\n      }\n    } else if (l.kendala) {\n      progStr = '⚠️ <b>Kendala</b>';\n      if (l.kendalaText) progStr += ': <i>' + l.kendalaText + '</i>';\n    } else {\n      progStr = '<i>Belum</i>';\n    }\n    if (l.done) {\n      return (i+1) + '. ✅ <s>' + lineStr + '</s>\\n   📡 ' + redStr + snStr + '\\n   📋 Progres: ' + progStr;\n    } else if (l.kendala) {\n      return (i+1) + '. ⚠️ <i>' + lineStr + '</i>\\n   📡 ' + redStr + snStr + '\\n   📋 Progres: ' + progStr;\n    } else {\n      return (i+1) + '. ⏳ ' + lineStr + '\\n   📡 ' + redStr + snStr + '\\n   📋 Progres: ' + progStr;\n    }\n  }).join('\\n\\n') + '\\n\\n─────────────────';\n}\n\nfunction buildKeyboard(ls, sk) {\n  const rows = [];\n  ls.forEach((l, i) => {\n    rows.push([\n      { text: '📶 Ukur #'+(i+1)+(l.redaman!==null?' 🔁':''), callback_data:'u:'+i+':'+sk },\n      { text: l.done    ? '↩️ Unmark #'+(i+1)        : '✅ Selesai #'+(i+1),   callback_data:'d:'+i+':'+sk },\n      { text: l.kendala ? '↩️ Batal Kendala #'+(i+1) : '⚠️ Kendala #'+(i+1),  callback_data:'k:'+i+':'+sk }\n    ]);\n    rows.push([{ text: '📋 Rekap #'+(i+1), callback_data:'r:'+i+':'+sk }]);\n  });\n  rows.push([\n    { text: '📡 Ukur Semua Redaman', callback_data:'a:'+sk },\n    { text: '➕ Tambah Tiket',       callback_data:'add:'+sk }\n  ]);\n  return rows;\n}\n\n// ── Helper: ekstrak field via regex (support semua format) ────────────────\nfunction extractFields(line) {\n  const incM  = line.match(/\\b(INC\\d+)\\b/i);\n  const inetM = line.match(/\\b(172\\d{9,12})\\b/);\n  const odpM  = line.match(/\\b(ODP-[A-Z0-9]+-[A-Z0-9\\/\\.]+)/i);\n  const tierM = line.match(/\\b(HVC_[A-Z_]+|REGULER|PREMIUM|SILVER|GOLD|PLATINUM)\\b/i);\n  if (!incM && !inetM) return null;\n  return {\n    inc:  incM  ? incM[1]  : '',\n    inet: inetM ? inetM[1] : '',\n    odp:  odpM  ? odpM[1]  : '',\n    tier: tierM ? tierM[1] : '',\n    rest: '',\n    redaman: null, sn: null, done: false, kendala: false,\n    perbaikan: null, penyebab: null, kendalaText: null\n  };\n}\n\nfunction parseTicketText(text) {\n  // ① Format WO resmi (label: value)\n  const incM  = text.match(/NO TIKET\\s*:\\s*(INC\\d+)/i);\n  const inetM = text.match(/User Pelanggan\\s*:\\s*(172\\d{9,12})/i) || text.match(/\\b(172\\d{9,12})\\b/);\n  const odpM  = text.match(/ODP Alpro\\s*:\\s*(ODP-[^\\s\\n\\r]+)/i);\n  const tierM = text.match(/Customer Type\\s*:\\s*([^\\n\\r]+)/i);\n  if (incM) {\n    return { inc:incM[1].trim(), inet:inetM?inetM[1].trim():'',\n      odp:odpM?odpM[1].trim():'', tier:tierM?tierM[1].trim():'',\n      rest:'', redaman:null, sn:null, done:false, kendala:false,\n      perbaikan:null, penyebab:null, kendalaText:null };\n  }\n  // ② Format pipe-separated manual: INC | 172 | ODP | tier | rest\n  const firstLine = text.split('\\n')[0];\n  const pipeParts = firstLine.split('|').map(p => p.trim());\n  if (pipeParts.length >= 2 && pipeParts[0].match(/^INC\\d+$/i)) {\n    const inet2 = text.match(/\\b(172\\d{9,12})\\b/);\n    return { inc:pipeParts[0], inet:inet2?inet2[1]:(pipeParts[1]||''),\n      odp:pipeParts[2]||'', tier:pipeParts[3]||'', rest:pipeParts.slice(4).join(' | '),\n      redaman:null, sn:null, done:false, kendala:false,\n      perbaikan:null, penyebab:null, kendalaText:null };\n  }\n  // ③ Format raw/space-delimited atau multi-baris bebas (scan seluruh teks)\n  return extractFields(text);\n}\n\nfunction parseRedaman(resultRaw) {\n  if (!resultRaw) return null;\n  const onuStatusM = resultRaw.match(/<b>ONU status[^<]*<\\/b>\\s*([^\\n<✅❌⚠️]+)/i);\n  const onuRxM     = resultRaw.match(/<b>ONU rx[^<]*<\\/b>\\s*([-\\d.]+)\\s*dBm/i);\n  const oltRxM     = resultRaw.match(/<b>OLT rx[^<]*<\\/b>\\s*([-\\d.]+)\\s*dBm/i);\n  const status = onuStatusM ? onuStatusM[1].replace(/[✅❌⚠️🔁\\s]+$/,'').trim() : '?';\n  const onuRx  = onuRxM ? onuRxM[1]+' dBm' : '?';\n  const oltRx  = oltRxM ? oltRxM[1]+' dBm' : '?';\n  return 'St: <b>'+status+'</b> | ONU: <b>'+onuRx+'</b> | OLT: <b>'+oltRx+'</b>';\n}\n\nconst msg    = $input.first().json;\nconst text   = msg.message?.text || '';\nconst chatId = String(msg.message?.chat?.id || '');\nconst userMsgId = String(msg.message?.message_id || '');\nif (!text.trim() || !chatId) return [];\n\nconst sd = $getWorkflowStaticData('global');\n\n// ── 1. Pending keterangan ─────────────────────────────────────────────────\nconst pk = sd['_pending_keterangan'];\nif (pk && String(pk.chatId) === chatId) {\n  const input   = text.trim();\n  const session = sd[pk.sessionKey];\n  if (!session) { delete sd['_pending_keterangan']; return []; }\n  const sessionKey = pk.sessionKey;\n\n  if (pk.step === 'perbaikan') {\n    delete sd['_pending_keterangan'];\n    const perbaikan = input.replace(/\\s*\\(.*\\)\\s*$/, '').trim();\n    const penyebabMatch = input.match(/\\(([^)]+)\\)/);\n    const penyebab = penyebabMatch ? penyebabMatch[1].trim() : '';\n    sd[sessionKey].lines[pk.lineIndex].done      = true;\n    sd[sessionKey].lines[pk.lineIndex].kendala   = false;\n    sd[sessionKey].lines[pk.lineIndex].perbaikan = perbaikan;\n    sd[sessionKey].lines[pk.lineIndex].penyebab  = penyebab;\n    return [{ json: {\n      _tg_action:       'edit_after_input',\n      delete_prompt_id:  pk.promptMsgId || null,\n      delete_user_id:    userMsgId,\n      notify_cb_id:      pk.callbackQueryId || null,\n      notify_text:       '✅ Tiket #'+(pk.lineIndex+1)+' ditandai Selesai!',\n      tg_chat_id:        session.chatId,\n      tg_method:         'editMessageText',\n      chat_id:           session.chatId,\n      message_id:        parseInt(session.messageId),\n      text:              buildMsgText(sd[sessionKey].lines),\n      parse_mode:        'HTML',\n      reply_markup:      JSON.stringify({inline_keyboard:buildKeyboard(sd[sessionKey].lines,sessionKey)})\n    }}];\n  }\n\n  if (pk.step === 'penyebab') {\n    delete sd['_pending_keterangan'];\n    sd[sessionKey].lines[pk.lineIndex].done      = true;\n    sd[sessionKey].lines[pk.lineIndex].kendala   = false;\n    sd[sessionKey].lines[pk.lineIndex].perbaikan = pk.perbaikan;\n    sd[sessionKey].lines[pk.lineIndex].penyebab  = input;\n    return [{ json: {\n      _tg_action:       'edit_after_input',\n      delete_prompt_id:  pk.promptMsgId || null,\n      delete_user_id:    userMsgId,\n      notify_cb_id:      pk.callbackQueryId || null,\n      notify_text:       '✅ Tiket #'+(pk.lineIndex+1)+' ditandai Selesai!',\n      tg_chat_id:        session.chatId,\n      tg_method:         'editMessageText',\n      chat_id:           session.chatId,\n      message_id:        parseInt(session.messageId),\n      text:              buildMsgText(sd[sessionKey].lines),\n      parse_mode:        'HTML',\n      reply_markup:      JSON.stringify({inline_keyboard:buildKeyboard(sd[sessionKey].lines,sessionKey)})\n    }}];\n  }\n\n  if (pk.step === 'kendala') {\n    delete sd['_pending_keterangan'];\n    sd[sessionKey].lines[pk.lineIndex].kendala    = true;\n    sd[sessionKey].lines[pk.lineIndex].done       = false;\n    sd[sessionKey].lines[pk.lineIndex].kendalaText = input;\n    return [{ json: {\n      _tg_action:       'edit_after_input',\n      delete_prompt_id:  pk.promptMsgId || null,\n      delete_user_id:    userMsgId,\n      notify_cb_id:      pk.callbackQueryId || null,\n      notify_text:       '⚠️ Tiket #'+(pk.lineIndex+1)+' ditandai Kendala!',\n      tg_chat_id:        session.chatId,\n      tg_method:         'editMessageText',\n      chat_id:           session.chatId,\n      message_id:        parseInt(session.messageId),\n      text:              buildMsgText(sd[sessionKey].lines),\n      parse_mode:        'HTML',\n      reply_markup:      JSON.stringify({inline_keyboard:buildKeyboard(sd[sessionKey].lines,sessionKey)})\n    }}];\n  }\n}\n\n// ── 2. Pending add ticket ─────────────────────────────────────────────────\nconst pa = sd['_pending_add'];\nif (pa && String(pa.chatId) === chatId) {\n  delete sd['_pending_add'];\n  const session = sd[pa.sessionKey];\n  if (!session) return [];\n  const newTicket = parseTicketText(text);\n  if (!newTicket) {\n    return [{ json: {\n      _tg_action:       'edit_after_input',\n      delete_prompt_id:  pa.promptMsgId || null,\n      delete_user_id:    userMsgId,\n      notify_cb_id:      null,\n      notify_text:       null,\n      tg_chat_id:        chatId,\n      tg_method:         'sendMessage',\n      chat_id:           chatId,\n      text:              '❌ Format tidak dikenali.\\n\\nGunakan format WO (copy-paste) atau:\\n<code>INC47xxx | 172418xxx | ODP-UBN-xxx | HVC_GOLD | keterangan</code>',\n      parse_mode:        'HTML',\n      reply_markup:      null\n    }}];\n  }\n  const sessionKey = pa.sessionKey;\n  sd[sessionKey].lines.push(newTicket);\n  return [{ json: {\n    _tg_action:       'edit_after_input',\n    delete_prompt_id:  pa.promptMsgId || null,\n    delete_user_id:    userMsgId,\n    notify_cb_id:      null,\n    notify_text:       '✅ Tiket berhasil ditambahkan!',\n    tg_chat_id:        session.chatId,\n    tg_method:         'editMessageText',\n    chat_id:           session.chatId,\n    message_id:        parseInt(session.messageId),\n    text:              buildMsgText(sd[sessionKey].lines),\n    parse_mode:        'HTML',\n    reply_markup:      JSON.stringify({inline_keyboard:buildKeyboard(sd[sessionKey].lines,sessionKey)})\n  }}];\n}\n\n// ── 3. New ticket list ────────────────────────────────────────────────────\nconst rawLines = text.trim().split('\\n').filter(l => l.trim());\nconst lines = rawLines\n  .filter(l => l.match(/INC\\d+/i) || l.match(/\\b172\\d{9}\\b/))\n  .map(line => {\n    // Cek format pipe-separated manual: bagian sebelum | pertama harus persis INC\n    const pipeParts = line.split('|').map(p => p.trim());\n    if (pipeParts.length >= 2 && pipeParts[0].match(/^INC\\d+$/i)) {\n      const inetM = line.match(/\\b(172\\d{9,12})\\b/);\n      return { inc:pipeParts[0], inet:inetM?inetM[1]:(pipeParts[1]||''),\n        odp:pipeParts[2]||'', tier:pipeParts[3]||'', rest:pipeParts.slice(4).join(' | '),\n        redaman:null, sn:null, done:false, kendala:false,\n        perbaikan:null, penyebab:null, kendalaText:null };\n    }\n    // Fallback: regex extraction (format space-delimited / raw system dump)\n    return extractFields(line) || {\n      inc:line.trim().substring(0,50), inet:'', odp:'', tier:'', rest:'',\n      redaman:null, sn:null, done:false, kendala:false,\n      perbaikan:null, penyebab:null, kendalaText:null\n    };\n  });\nif (lines.length === 0) return [];\nconst sessionKey = 'sk' + Date.now().toString(36).slice(-5);\nconst sd2 = $getWorkflowStaticData('global');\nsd2[sessionKey] = { chatId, lines, messageId: null, sessionKey };\nreturn [{ json: {\n  _tg_action:   'send',\n  chat_id:      chatId,\n  text:         buildMsgText(lines),\n  parse_mode:   'HTML',\n  reply_markup: JSON.stringify({inline_keyboard:buildKeyboard(lines,sessionKey)}),\n  sessionKey\n}}];\n"
+      },
+      "id": "0c1e202f-3682-4e19-8b0d-cadeb554f6cf",
+      "name": "📋 Parse & Siapkan Tiket",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1168,
+        1696
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "14884b8f-4711-4fb3-a857-b927d712f577",
+      "name": "📨 Telegram: sendMessage",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1664,
+        1440
+      ],
+      "webhookId": "235e55fe-3a26-4c0e-b9db-b4bb96e0eb0e",
+      "credentials": {
+        "telegramApi": {
+          "id": "pagGDH8KV4LR0q7Z",
+          "name": "Technician Helper II"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "\nfunction buildMsgText(ls) {\n  return ls.map((l, i) => {\n    const inc  = l.inc  ? '<code>' + l.inc  + '</code>' : '';\n    const inet = l.inet ? '<code>' + l.inet + '</code>' : '';\n    const odp  = l.odp  ? '<code>' + l.odp  + '</code>' : '';\n    const tier = l.tier || '';\n    const rest = l.rest || '';\n    const parts = [inc, inet, odp, tier, rest].filter(Boolean);\n    const lineStr = parts.join(' | ');\n    const redStr = l.redaman !== null ? l.redaman : '<i>Belum diukur</i>';\n    const snStr  = l.sn ? '\\n   🔌 SN: <code>' + l.sn + '</code>' : '';\n    let progStr;\n    if (l.done) {\n      progStr = '✅ <b>Selesai</b>';\n      if (l.perbaikan) {\n        progStr += ': <i>' + l.perbaikan + '</i>';\n        if (l.penyebab) progStr += ' (<i>' + l.penyebab + '</i>)';\n      }\n    } else if (l.kendala) {\n      progStr = '⚠️ <b>Kendala</b>';\n      if (l.kendalaText) progStr += ': <i>' + l.kendalaText + '</i>';\n    } else {\n      progStr = '<i>Belum</i>';\n    }\n    if (l.done) {\n      return (i+1) + '. ✅ <s>' + lineStr + '</s>\\n   📡 ' + redStr + snStr + '\\n   📋 Progres: ' + progStr;\n    } else if (l.kendala) {\n      return (i+1) + '. ⚠️ <i>' + lineStr + '</i>\\n   📡 ' + redStr + snStr + '\\n   📋 Progres: ' + progStr;\n    } else {\n      return (i+1) + '. ⏳ ' + lineStr + '\\n   📡 ' + redStr + snStr + '\\n   📋 Progres: ' + progStr;\n    }\n  }).join('\\n\\n') + '\\n\\n─────────────────';\n}\n\nfunction buildKeyboard(ls, sk) {\n  const rows = [];\n  ls.forEach((l, i) => {\n    rows.push([\n      { text: '📶 Ukur #'+(i+1)+(l.redaman!==null?' 🔁':''), callback_data:'u:'+i+':'+sk },\n      { text: l.done    ? '↩️ Unmark #'+(i+1)        : '✅ Selesai #'+(i+1),   callback_data:'d:'+i+':'+sk },\n      { text: l.kendala ? '↩️ Batal Kendala #'+(i+1) : '⚠️ Kendala #'+(i+1),  callback_data:'k:'+i+':'+sk }\n    ]);\n    rows.push([{ text: '📋 Rekap #'+(i+1), callback_data:'r:'+i+':'+sk }]);\n  });\n  rows.push([\n    { text: '📡 Ukur Semua Redaman', callback_data:'a:'+sk },\n    { text: '➕ Tambah Tiket',       callback_data:'add:'+sk }\n  ]);\n  return rows;\n}\n\nfunction parseTicketText(text) {\n  const incM  = text.match(/NO TIKET\\s*:\\s*(INC\\d+)/i);\n  const inetM = text.match(/User Pelanggan\\s*:\\s*(172\\d{9,12})/i) || text.match(/\\b(172\\d{9,12})\\b/);\n  const odpM  = text.match(/ODP Alpro\\s*:\\s*(ODP-[^\\s\\n\\r]+)/i);\n  const tierM = text.match(/Customer Type\\s*:\\s*([^\\n\\r]+)/i);\n  if (incM) {\n    return { inc:incM[1].trim(), inet:inetM?inetM[1].trim():'',\n      odp:odpM?odpM[1].trim():'', tier:tierM?tierM[1].trim():'',\n      rest:'', redaman:null, sn:null, done:false, kendala:false,\n      perbaikan:null, penyebab:null, kendalaText:null };\n  }\n  const firstLine = text.split('\\n')[0];\n  const parts = firstLine.split('|').map(p => p.trim());\n  const inet2 = text.match(/\\b(172\\d{9,12})\\b/);\n  if (parts[0].match(/INC\\d+/i) || inet2) {\n    return { inc:parts[0]||'', inet:inet2?inet2[1]:(parts[1]||''),\n      odp:parts[2]||'', tier:parts[3]||'', rest:parts.slice(4).join(' | '),\n      redaman:null, sn:null, done:false, kendala:false,\n      perbaikan:null, penyebab:null, kendalaText:null };\n  }\n  return null;\n}\n\nfunction parseRedaman(resultRaw) {\n  if (!resultRaw) return null;\n  const onuStatusM = resultRaw.match(/<b>ONU status[^<]*<\\/b>\\s*([^\\n<✅❌⚠️]+)/i);\n  const onuRxM     = resultRaw.match(/<b>ONU rx[^<]*<\\/b>\\s*([-\\d.]+)\\s*dBm/i);\n  const oltRxM     = resultRaw.match(/<b>OLT rx[^<]*<\\/b>\\s*([-\\d.]+)\\s*dBm/i);\n  const status = onuStatusM ? onuStatusM[1].replace(/[✅❌⚠️🔁\\s]+$/,'').trim() : '?';\n  const onuRx  = onuRxM ? onuRxM[1]+' dBm' : '?';\n  const oltRx  = oltRxM ? oltRxM[1]+' dBm' : '?';\n  return 'St: <b>'+status+'</b> | ONU: <b>'+onuRx+'</b> | OLT: <b>'+oltRx+'</b>';\n}\nconst sd   = $getWorkflowStaticData('global');\nconst item = $input.first().json;\nconst messageId = String(item.message_id || item.result?.message_id || '');\n\nlet sessionKey = null;\nfor (const [k, v] of Object.entries(sd)) {\n  if (k.startsWith('sk') && v && !v.messageId) {\n    sessionKey = k;\n    break;\n  }\n}\n\nif (sessionKey && messageId) {\n  sd[sessionKey].messageId = messageId;\n}\n\nconst session  = sd[sessionKey];\nconst keyboard = session ? buildKeyboard(session.lines, sessionKey) : [];\n\nreturn [{ json: {\n  chat_id:      session?.chatId || '',\n  message_id:   parseInt(messageId),\n  reply_markup: JSON.stringify({ inline_keyboard: keyboard }),\n  sessionKey,\n  messageId\n}}];\n"
+      },
+      "id": "aefd85c6-9bbb-438f-90da-d4cb47609d87",
+      "name": "💾 Simpan messageId",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1920,
+        1440
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst cbq = $input.first().json?.callback_query;\nif (!cbq) return [];\nconst data = cbq.data || '';\nconst parts = data.split(':');\nconst cbType = parts[0];\nlet lineIndex = null, sessionKey = null;\nif (['u','d','k','r'].includes(cbType)) {\n  lineIndex  = parseInt(parts[1]);\n  sessionKey = parts[2];\n} else if (['a','add','cancel'].includes(cbType)) {\n  sessionKey = parts[1];\n}\nreturn [{ json: {\n  cbType, lineIndex, sessionKey,\n  chatId:          String(cbq.message?.chat?.id || ''),\n  messageId:       String(cbq.message?.message_id || ''),\n  callbackQueryId: cbq.id\n}}];\n"
+      },
+      "id": "039db4dc-40c3-4747-9bca-b1fc6d167145",
+      "name": "🔍 Parse Callback",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1168,
+        2144
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nfunction parseRedaman(resultRaw) {\n  if (!resultRaw) return null;\n  const onuStatusM = resultRaw.match(/<b>ONU status[^<]*<\\/b>\\s*([^\\n<✅❌⚠️]+)/i);\n  const onuRxM     = resultRaw.match(/<b>ONU rx[^<]*<\\/b>\\s*([-\\d.]+)\\s*dBm/i);\n  const oltRxM     = resultRaw.match(/<b>OLT rx[^<]*<\\/b>\\s*([-\\d.]+)\\s*dBm/i);\n  const status = onuStatusM ? onuStatusM[1].replace(/[✅❌⚠️🔁\\s]+$/,'').trim() : '?';\n  const onuRx  = onuRxM ? onuRxM[1]+' dBm' : '?';\n  const oltRx  = oltRxM ? oltRxM[1]+' dBm' : '?';\n  return 'St: <b>'+status+'</b> | ONU: <b>'+onuRx+'</b> | OLT: <b>'+oltRx+'</b>';\n}\n\nconst { cbType, lineIndex, sessionKey, callbackQueryId, chatId, messageId } = $input.first().json;\nconst sd = $getWorkflowStaticData('global');\nconst session = sd[sessionKey];\nlet answerText = '⏳ Memproses...';\nlet alert = false;\nif (!session) {\n  answerText = '❌ Sesi tidak ditemukan. Kirim ulang list tiket.';\n  alert = true;\n} else if (cbType === 'd') {\n  const line = session.lines[lineIndex];\n  answerText = line?.done ? '↩️ Membatalkan status Selesai...' : '✅ Ketik hasil perbaikannya...';\n} else if (cbType === 'k') {\n  const line = session.lines[lineIndex];\n  answerText = line?.kendala ? '↩️ Membatalkan status Kendala...' : '⚠️ Ketik kendalanya...';\n}\nreturn [{ json: {\n  tg_method: 'answerCallbackQuery', callback_query_id: callbackQueryId,\n  text: answerText, show_alert: alert,\n  cbType, lineIndex, sessionKey, chatId,\n  messageId: session?.messageId || messageId\n}}];\n"
+      },
+      "id": "3f172829-d9d2-43bb-9806-4b85a006ccac",
+      "name": "💬 Siapkan answerCB",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1344,
+        2144
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.telegram.org/bot' + $('🔧 Config').first().json.BOT_TOKEN + '/answerCallbackQuery' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ callback_query_id: $json.callback_query_id, text: $json.text, show_alert: $json.show_alert }) }}",
+        "options": {}
+      },
+      "id": "3ddf66e7-3d36-4fff-a235-ee80f1c1797f",
+      "name": "📣 Telegram: answerCB",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1584,
+        2144
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "ru",
+                    "leftValue": "={{ $('💬 Siapkan answerCB').first().json.cbType }}",
+                    "rightValue": "u",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Ukur Single"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "rd",
+                    "leftValue": "={{ $('💬 Siapkan answerCB').first().json.cbType }}",
+                    "rightValue": "d",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Toggle Done"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "ra",
+                    "leftValue": "={{ $('💬 Siapkan answerCB').first().json.cbType }}",
+                    "rightValue": "a",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Ukur Semua"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "rk",
+                    "leftValue": "={{ $('💬 Siapkan answerCB').first().json.cbType }}",
+                    "rightValue": "k",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Kendala"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "r_add",
+                    "leftValue": "={{ $('💬 Siapkan answerCB').first().json.cbType }}",
+                    "rightValue": "add",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Tambah"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "r_r",
+                    "leftValue": "={{ $('💬 Siapkan answerCB').first().json.cbType }}",
+                    "rightValue": "r",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Rekap"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "r_cancel",
+                    "leftValue": "={{ $('💬 Siapkan answerCB').first().json.cbType }}",
+                    "rightValue": "cancel",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Cancel"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "6435a97f-4624-4078-a689-05245e090dab",
+      "name": "🚦 u / d / a",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        1376,
+        2704
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst { cbType, lineIndex, sessionKey, chatId, messageId } = $input.first().json;\nconst sd = $getWorkflowStaticData('global');\nconst session = sd[sessionKey];\n\nif (!session) return [];\n\nconst line = session.lines[lineIndex];\nif (!line?.inet) return [];\n\n// Simpan context ke static data supaya Proses Hasil Single bisa ambil\n// (Execute Workflow overwrite $input)\nsd['_pending_single'] = { lineIndex, sessionKey };\n\nreturn [{ json: { q: line.inet } }];\n"
+      },
+      "id": "4465a5d7-f14c-4c4b-b39c-8580be419dd7",
+      "name": "⚙️ Siapkan Ukur Single",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2016,
+        2320
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "pQK0pPVbb7qF7doV",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/pQK0pPVbb7qF7doV",
+          "cachedResultName": "FUCK LENSA (Ibooster Reborn)"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "1704d6ed-f36d-4fd6-a815-bf78864aa7ef",
+      "name": "🔬 FUCK LENSA: Ukur Single",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        2272,
+        2320
+      ],
+      "retryOnFail": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nfunction buildMsgText(ls) {\n  return ls.map((l, i) => {\n    const inc  = l.inc  ? '<code>' + l.inc  + '</code>' : '';\n    const inet = l.inet ? '<code>' + l.inet + '</code>' : '';\n    const odp  = l.odp  ? '<code>' + l.odp  + '</code>' : '';\n    const tier = l.tier || '';\n    const rest = l.rest || '';\n    const parts = [inc, inet, odp, tier, rest].filter(Boolean);\n    const lineStr = parts.join(' | ');\n    const redStr = l.redaman !== null ? l.redaman : '<i>Belum diukur</i>';\n    const snStr  = l.sn ? '\\n   🔌 SN: <code>' + l.sn + '</code>' : '';\n    let progStr;\n    if (l.done) {\n      progStr = '✅ <b>Selesai</b>';\n      if (l.perbaikan) {\n        progStr += ': <i>' + l.perbaikan + '</i>';\n        if (l.penyebab) progStr += ' (<i>' + l.penyebab + '</i>)';\n      }\n    } else if (l.kendala) {\n      progStr = '⚠️ <b>Kendala</b>';\n      if (l.kendalaText) progStr += ': <i>' + l.kendalaText + '</i>';\n    } else {\n      progStr = '<i>Belum</i>';\n    }\n    if (l.done) {\n      return (i+1) + '. ✅ <s>' + lineStr + '</s>\\n   📡 ' + redStr + snStr + '\\n   📋 Progres: ' + progStr;\n    } else if (l.kendala) {\n      return (i+1) + '. ⚠️ <i>' + lineStr + '</i>\\n   📡 ' + redStr + snStr + '\\n   📋 Progres: ' + progStr;\n    } else {\n      return (i+1) + '. ⏳ ' + lineStr + '\\n   📡 ' + redStr + snStr + '\\n   📋 Progres: ' + progStr;\n    }\n  }).join('\\n\\n') + '\\n\\n─────────────────';\n}\n\nfunction buildKeyboard(ls, sk) {\n  const rows = [];\n  ls.forEach((l, i) => {\n    rows.push([\n      { text: '📶 Ukur #'+(i+1)+(l.redaman!==null?' 🔁':''), callback_data:'u:'+i+':'+sk },\n      { text: l.done    ? '↩️ Unmark #'+(i+1)        : '✅ Selesai #'+(i+1),   callback_data:'d:'+i+':'+sk },\n      { text: l.kendala ? '↩️ Batal Kendala #'+(i+1) : '⚠️ Kendala #'+(i+1),  callback_data:'k:'+i+':'+sk }\n    ]);\n    rows.push([{ text: '📋 Rekap #'+(i+1), callback_data:'r:'+i+':'+sk }]);\n  });\n  rows.push([\n    { text: '📡 Ukur Semua Redaman', callback_data:'a:'+sk },\n    { text: '➕ Tambah Tiket',       callback_data:'add:'+sk }\n  ]);\n  return rows;\n}\n\nfunction parseTicketText(text) {\n  const incM  = text.match(/NO TIKET\\s*:\\s*(INC\\d+)/i);\n  const inetM = text.match(/User Pelanggan\\s*:\\s*(172\\d{9,12})/i) || text.match(/\\b(172\\d{9,12})\\b/);\n  const odpM  = text.match(/ODP Alpro\\s*:\\s*(ODP-[^\\s\\n\\r]+)/i);\n  const tierM = text.match(/Customer Type\\s*:\\s*([^\\n\\r]+)/i);\n  if (incM) {\n    return { inc:incM[1].trim(), inet:inetM?inetM[1].trim():'',\n      odp:odpM?odpM[1].trim():'', tier:tierM?tierM[1].trim():'',\n      rest:'', redaman:null, sn:null, done:false, kendala:false,\n      perbaikan:null, penyebab:null, kendalaText:null };\n  }\n  const firstLine = text.split('\\n')[0];\n  const parts = firstLine.split('|').map(p => p.trim());\n  const inet2 = text.match(/\\b(172\\d{9,12})\\b/);\n  if (parts[0].match(/INC\\d+/i) || inet2) {\n    return { inc:parts[0]||'', inet:inet2?inet2[1]:(parts[1]||''),\n      odp:parts[2]||'', tier:parts[3]||'', rest:parts.slice(4).join(' | '),\n      redaman:null, sn:null, done:false, kendala:false,\n      perbaikan:null, penyebab:null, kendalaText:null };\n  }\n  return null;\n}\n\nfunction parseRedaman(resultRaw) {\n  if (!resultRaw) return null;\n  const onuStatusM = resultRaw.match(/<b>ONU status[^<]*<\\/b>\\s*([^\\n<✅❌⚠️]+)/i);\n  const onuRxM     = resultRaw.match(/<b>ONU rx[^<]*<\\/b>\\s*([-\\d.]+)\\s*dBm/i);\n  const oltRxM     = resultRaw.match(/<b>OLT rx[^<]*<\\/b>\\s*([-\\d.]+)\\s*dBm/i);\n  const status = onuStatusM ? onuStatusM[1].replace(/[✅❌⚠️🔁\\s]+$/,'').trim() : '?';\n  const onuRx  = onuRxM ? onuRxM[1]+' dBm' : '?';\n  const oltRx  = oltRxM ? oltRxM[1]+' dBm' : '?';\n  return 'St: <b>'+status+'</b> | ONU: <b>'+onuRx+'</b> | OLT: <b>'+oltRx+'</b>';\n}\nconst sd      = $getWorkflowStaticData('global');\nconst pending = sd['_pending_single'];\nif (!pending) return [];\nconst { lineIndex, sessionKey } = pending;\ndelete sd['_pending_single'];\nconst session = sd[sessionKey];\nif (!session) return [];\nconst item      = $input.first().json;\nconst resultRaw = item.result_text || '';\nconst onuSn     = item.onu_sn || null;\nconst redaman   = parseRedaman(resultRaw) || '⚠️ No data';\nsd[sessionKey].lines[lineIndex].redaman = redaman;\nif (onuSn) sd[sessionKey].lines[lineIndex].sn = onuSn;\nconst newText     = buildMsgText(sd[sessionKey].lines);\nconst newKeyboard = buildKeyboard(sd[sessionKey].lines, sessionKey);\nreturn [{ json: {\n  tg_method:'editMessageText', chat_id:session.chatId,\n  message_id:parseInt(session.messageId), text:newText,\n  parse_mode:'HTML', reply_markup:JSON.stringify({inline_keyboard:newKeyboard})\n}}];\n"
+      },
+      "id": "cc1f033e-3807-43d4-9b1b-9810d8f62428",
+      "name": "📝 Proses Hasil Single",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2544,
+        2320
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.telegram.org/bot' + $('🔧 Config').first().json.BOT_TOKEN + '/editMessageText' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: $json.chat_id, message_id: $json.message_id, text: $json.text, parse_mode: $json.parse_mode, reply_markup: JSON.parse($json.reply_markup) }) }}",
+        "options": {}
+      },
+      "id": "8e7cbe18-3bde-4c89-b484-b57bd29ad445",
+      "name": "✏️ Telegram: Edit (Single)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2864,
+        2320
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "\nfunction buildMsgText(ls) {\n  return ls.map((l, i) => {\n    const inc  = l.inc  ? '<code>' + l.inc  + '</code>' : '';\n    const inet = l.inet ? '<code>' + l.inet + '</code>' : '';\n    const odp  = l.odp  ? '<code>' + l.odp  + '</code>' : '';\n    const tier = l.tier || '';\n    const rest = l.rest || '';\n    const parts = [inc, inet, odp, tier, rest].filter(Boolean);\n    const lineStr = parts.join(' | ');\n    const redStr = l.redaman !== null ? l.redaman : '<i>Belum diukur</i>';\n    const snStr  = l.sn ? '\\n   🔌 SN: <code>' + l.sn + '</code>' : '';\n    let progStr;\n    if (l.done) {\n      progStr = '✅ <b>Selesai</b>';\n      if (l.perbaikan) {\n        progStr += ': <i>' + l.perbaikan + '</i>';\n        if (l.penyebab) progStr += ' (<i>' + l.penyebab + '</i>)';\n      }\n    } else if (l.kendala) {\n      progStr = '⚠️ <b>Kendala</b>';\n      if (l.kendalaText) progStr += ': <i>' + l.kendalaText + '</i>';\n    } else {\n      progStr = '<i>Belum</i>';\n    }\n    if (l.done) {\n      return (i+1) + '. ✅ <s>' + lineStr + '</s>\\n   📡 ' + redStr + snStr + '\\n   📋 Progres: ' + progStr;\n    } else if (l.kendala) {\n      return (i+1) + '. ⚠️ <i>' + lineStr + '</i>\\n   📡 ' + redStr + snStr + '\\n   📋 Progres: ' + progStr;\n    } else {\n      return (i+1) + '. ⏳ ' + lineStr + '\\n   📡 ' + redStr + snStr + '\\n   📋 Progres: ' + progStr;\n    }\n  }).join('\\n\\n') + '\\n\\n─────────────────';\n}\n\nfunction buildKeyboard(ls, sk) {\n  const rows = [];\n  ls.forEach((l, i) => {\n    rows.push([\n      { text: '📶 Ukur #'+(i+1)+(l.redaman!==null?' 🔁':''), callback_data:'u:'+i+':'+sk },\n      { text: l.done    ? '↩️ Unmark #'+(i+1)        : '✅ Selesai #'+(i+1),   callback_data:'d:'+i+':'+sk },\n      { text: l.kendala ? '↩️ Batal Kendala #'+(i+1) : '⚠️ Kendala #'+(i+1),  callback_data:'k:'+i+':'+sk }\n    ]);\n    rows.push([{ text: '📋 Rekap #'+(i+1), callback_data:'r:'+i+':'+sk }]);\n  });\n  rows.push([\n    { text: '📡 Ukur Semua Redaman', callback_data:'a:'+sk },\n    { text: '➕ Tambah Tiket',       callback_data:'add:'+sk }\n  ]);\n  return rows;\n}\n\nfunction parseTicketText(text) {\n  const incM  = text.match(/NO TIKET\\s*:\\s*(INC\\d+)/i);\n  const inetM = text.match(/User Pelanggan\\s*:\\s*(172\\d{9,12})/i) || text.match(/\\b(172\\d{9,12})\\b/);\n  const odpM  = text.match(/ODP Alpro\\s*:\\s*(ODP-[^\\s\\n\\r]+)/i);\n  const tierM = text.match(/Customer Type\\s*:\\s*([^\\n\\r]+)/i);\n  if (incM) {\n    return {\n      inc:incM[1].trim(), inet:inetM?inetM[1].trim():'',\n      odp:odpM?odpM[1].trim():'', tier:tierM?tierM[1].trim():'',\n      rest:'', redaman:null, sn:null, done:false, kendala:false,\n      perbaikan:null, penyebab:null, kendalaText:null\n    };\n  }\n  const firstLine = text.split('\\n')[0];\n  const parts = firstLine.split('|').map(p => p.trim());\n  const inet2 = text.match(/\\b(172\\d{9,12})\\b/);\n  if (parts[0].match(/INC\\d+/i) || inet2) {\n    return {\n      inc:parts[0]||'', inet:inet2?inet2[1]:(parts[1]||''),\n      odp:parts[2]||'', tier:parts[3]||'',\n      rest:parts.slice(4).join(' | '),\n      redaman:null, sn:null, done:false, kendala:false,\n      perbaikan:null, penyebab:null, kendalaText:null\n    };\n  }\n  return null;\n}\n\nfunction parseRedaman(resultRaw) {\n  if (!resultRaw) return null;\n  const onuStatusM = resultRaw.match(/<b>ONU status[^<]*<\\/b>\\s*([^\\n<✅❌⚠️]+)/i);\n  const onuRxM     = resultRaw.match(/<b>ONU rx[^<]*<\\/b>\\s*([-\\d.]+)\\s*dBm/i);\n  const oltRxM     = resultRaw.match(/<b>OLT rx[^<]*<\\/b>\\s*([-\\d.]+)\\s*dBm/i);\n  const status = onuStatusM ? onuStatusM[1].replace(/[✅❌⚠️🔁\\s]+$/,'').trim() : '?';\n  const onuRx  = onuRxM ? onuRxM[1]+' dBm' : '?';\n  const oltRx  = oltRxM ? oltRxM[1]+' dBm' : '?';\n  return 'St: <b>'+status+'</b> | ONU: <b>'+onuRx+'</b> | OLT: <b>'+oltRx+'</b>';\n}\n\nconst { lineIndex, sessionKey, callbackQueryId } = $input.first().json;\nconst sd = $getWorkflowStaticData('global');\nconst session = sd[sessionKey];\nif (!session) return [];\nconst line = sd[sessionKey].lines[lineIndex];\n\nif (line.done) {\n  sd[sessionKey].lines[lineIndex].done      = false;\n  sd[sessionKey].lines[lineIndex].perbaikan = null;\n  sd[sessionKey].lines[lineIndex].penyebab  = null;\n  return [{ json: {\n    _ask: false,\n    tg_method:    'editMessageText',\n    chat_id:      session.chatId,\n    message_id:   parseInt(session.messageId),\n    text:         buildMsgText(sd[sessionKey].lines),\n    parse_mode:   'HTML',\n    reply_markup: JSON.stringify({inline_keyboard:buildKeyboard(sd[sessionKey].lines,sessionKey)})\n  }}];\n}\n\nsd['_pending_keterangan'] = {\n  type:'done', step:'perbaikan',\n  lineIndex, sessionKey, chatId: session.chatId,\n  callbackQueryId: callbackQueryId || null\n};\nconst label = line.inc ? '<code>'+line.inc+'</code>' : 'tiket #'+(lineIndex+1);\nreturn [{ json: {\n  _ask: true,\n  tg_method:    'sendMessage',\n  chat_id:      session.chatId,\n  text:         '✅ <b>Perbaikannya apa</b> untuk '+label+'?\\n\\nFormat: <code>Perbaikan (Penyebab)</code>\\nContoh: <code>Ganti ONT (ONT mati total)</code>\\n\\n<i>Penyebab boleh dikosongkan.</i>',\n  parse_mode:   'HTML',\n  reply_markup: JSON.stringify({inline_keyboard:[[{text:'❌ Batal',callback_data:'cancel:'+sessionKey}]]})\n}}];\n"
+      },
+      "id": "75615403-2736-443a-bf93-f57dd5f69486",
+      "name": "✅ Toggle Done",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2016,
+        2528
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.telegram.org/bot' + $('🔧 Config').first().json.BOT_TOKEN + '/editMessageText' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: $json.chat_id, message_id: $json.message_id, text: $json.text, parse_mode: $json.parse_mode, reply_markup: JSON.parse($json.reply_markup) }) }}",
+        "options": {}
+      },
+      "id": "68b2b213-3561-480f-acf0-37a21b86f42f",
+      "name": "✏️ Telegram: Edit (Done)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2544,
+        2608
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst { sessionKey } = $input.first().json;\nconst sd = $getWorkflowStaticData('global');\nconst session = sd[sessionKey];\nif (!session) return [];\n\n// Simpan context (Execute Workflow overwrite $input)\nsd['_pending_all'] = session.lines.map((line, i) => ({ lineIndex: i, sessionKey }));\n\nreturn session.lines.map((line) => ({ json: { q: line.inet } }));\n"
+      },
+      "id": "05f07e63-864d-4299-9232-3ba7bcebc258",
+      "name": "⚙️ Siapkan Ukur Semua",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2016,
+        2752
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "pQK0pPVbb7qF7doV",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/pQK0pPVbb7qF7doV",
+          "cachedResultName": "FUCK LENSA (Ibooster Reborn)"
+        },
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "6092bd59-f58e-4906-838c-f3883a76f46d",
+      "name": "🔬 FUCK LENSA: Ukur Semua",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        2256,
+        2752
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "\nfunction buildMsgText(ls) {\n  return ls.map((l, i) => {\n    const inc  = l.inc  ? '<code>' + l.inc  + '</code>' : '';\n    const inet = l.inet ? '<code>' + l.inet + '</code>' : '';\n    const odp  = l.odp  ? '<code>' + l.odp  + '</code>' : '';\n    const tier = l.tier || '';\n    const rest = l.rest || '';\n    const parts = [inc, inet, odp, tier, rest].filter(Boolean);\n    const lineStr = parts.join(' | ');\n    const redStr = l.redaman !== null ? l.redaman : '<i>Belum diukur</i>';\n    const snStr  = l.sn ? '\\n   🔌 SN: <code>' + l.sn + '</code>' : '';\n    let progStr;\n    if (l.done) {\n      progStr = '✅ <b>Selesai</b>';\n      if (l.perbaikan) {\n        progStr += ': <i>' + l.perbaikan + '</i>';\n        if (l.penyebab) progStr += ' (<i>' + l.penyebab + '</i>)';\n      }\n    } else if (l.kendala) {\n      progStr = '⚠️ <b>Kendala</b>';\n      if (l.kendalaText) progStr += ': <i>' + l.kendalaText + '</i>';\n    } else {\n      progStr = '<i>Belum</i>';\n    }\n    if (l.done) {\n      return (i+1) + '. ✅ <s>' + lineStr + '</s>\\n   📡 ' + redStr + snStr + '\\n   📋 Progres: ' + progStr;\n    } else if (l.kendala) {\n      return (i+1) + '. ⚠️ <i>' + lineStr + '</i>\\n   📡 ' + redStr + snStr + '\\n   📋 Progres: ' + progStr;\n    } else {\n      return (i+1) + '. ⏳ ' + lineStr + '\\n   📡 ' + redStr + snStr + '\\n   📋 Progres: ' + progStr;\n    }\n  }).join('\\n\\n') + '\\n\\n─────────────────';\n}\n\nfunction buildKeyboard(ls, sk) {\n  const rows = [];\n  ls.forEach((l, i) => {\n    rows.push([\n      { text: '📶 Ukur #'+(i+1)+(l.redaman!==null?' 🔁':''), callback_data:'u:'+i+':'+sk },\n      { text: l.done    ? '↩️ Unmark #'+(i+1)        : '✅ Selesai #'+(i+1),   callback_data:'d:'+i+':'+sk },\n      { text: l.kendala ? '↩️ Batal Kendala #'+(i+1) : '⚠️ Kendala #'+(i+1),  callback_data:'k:'+i+':'+sk }\n    ]);\n    rows.push([{ text: '📋 Rekap #'+(i+1), callback_data:'r:'+i+':'+sk }]);\n  });\n  rows.push([\n    { text: '📡 Ukur Semua Redaman', callback_data:'a:'+sk },\n    { text: '➕ Tambah Tiket',       callback_data:'add:'+sk }\n  ]);\n  return rows;\n}\n\nfunction parseRedaman(resultRaw) {\n  if (!resultRaw) return null;\n  const onuStatusM = resultRaw.match(/<b>ONU status[^<]*<\\/b>\\s*([^\\n<✅❌⚠️]+)/i);\n  const onuRxM     = resultRaw.match(/<b>ONU rx[^<]*<\\/b>\\s*([-\\d.]+)\\s*dBm/i);\n  const oltRxM     = resultRaw.match(/<b>OLT rx[^<]*<\\/b>\\s*([-\\d.]+)\\s*dBm/i);\n  const status = onuStatusM ? onuStatusM[1].replace(/[✅❌⚠️🔁\\s]+$/,'').trim() : '?';\n  const onuRx  = onuRxM ? onuRxM[1]+' dBm' : '?';\n  const oltRx  = oltRxM ? oltRxM[1]+' dBm' : '?';\n  return 'St: <b>'+status+'</b> | ONU: <b>'+onuRx+'</b> | OLT: <b>'+oltRx+'</b>';\n}\n\nconst sd      = $getWorkflowStaticData('global');\nconst pending = sd['_pending_all'];\nconst items   = $input.all();\n\nif (!pending || pending.length === 0) return [];\nconst sessionKey = pending[0].sessionKey;\nconst session    = sd[sessionKey];\nif (!session) return [];\n\nlet successCount = 0;\nconst failList   = [];\nconst matched    = new Set();\n\n// Iterasi semua items dari sub-workflow\n// Mode 'each': tiap item = 1 sub-execution result\n// Error item: item.json mungkin ada error field, atau result_text null\nfor (let idx = 0; idx < items.length; idx++) {\n  const item = items[idx];\n  // Handle error items dari continueOnFail\n  if (!item || !item.json) continue;\n\n  const result = item.json;\n  // Cek apakah ini error item (sub-workflow gagal)\n  const isError = result.error !== undefined || (!result.result_text && !result.onu_sn);\n  if (isError) continue;  // akan di-handle sebagai unmatched = gagal\n\n  const rt = result.result_text || '';\n  if (!rt) continue;\n\n  // Extract inet dari result_text: \"nomor internet 172418XXXXXX\"\n  const inetM = rt.match(/nomor internet\\s+(\\d+)/i);\n  if (!inetM) continue;\n  const inet = inetM[1];\n\n  // Cari pending item yang sesuai\n  const pidx = pending.findIndex((p, i) =>\n    !matched.has(i) &&\n    String(sd[sessionKey]?.lines[p.lineIndex]?.inet || '') === inet\n  );\n  if (pidx < 0) continue;\n\n  matched.add(pidx);\n  const redaman = parseRedaman(rt) || '⚠️ No data';\n  sd[sessionKey].lines[pending[pidx].lineIndex].redaman = redaman;\n  if (result.onu_sn) sd[sessionKey].lines[pending[pidx].lineIndex].sn = result.onu_sn;\n  successCount++;\n}\n\n// Yang tidak matched = gagal\nfor (let i = 0; i < pending.length; i++) {\n  if (!matched.has(i)) {\n    const label = sd[sessionKey].lines[pending[i].lineIndex]?.inet\n      || ('baris #'+(pending[i].lineIndex+1));\n    sd[sessionKey].lines[pending[i].lineIndex].redaman = '⚠️ Gagal';\n    failList.push(label);\n  }\n}\n\ndelete sd['_pending_all'];\n\nconst total      = pending.length;\nconst summaryTxt = failList.length === 0\n  ? '✅ Semua '+total+' redaman berhasil diukur!'\n  : '⚠️ '+successCount+'/'+total+' berhasil. Gagal: '+failList.join(', ');\n\nreturn [{ json: {\n  tg_method:    'editMessageText',\n  chat_id:      session.chatId,\n  message_id:   parseInt(session.messageId),\n  text:         buildMsgText(sd[sessionKey].lines),\n  parse_mode:   'HTML',\n  reply_markup: JSON.stringify({inline_keyboard:buildKeyboard(sd[sessionKey].lines,sessionKey)}),\n  summary_text: summaryTxt,\n  summary_chat: String(session.chatId)\n}}];\n"
+      },
+      "id": "d9393f21-cd35-420b-8104-b2795c96de57",
+      "name": "📊 Aggregate Semua",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2528,
+        2752
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.telegram.org/bot' + $('🔧 Config').first().json.BOT_TOKEN + '/editMessageText' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: $json.chat_id, message_id: $json.message_id, text: $json.text, parse_mode: $json.parse_mode, reply_markup: JSON.parse($json.reply_markup) }) }}",
+        "options": {}
+      },
+      "id": "67320e7d-07b7-48b3-8465-8162545a28a1",
+      "name": "✏️ Telegram: Edit (Semua)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2784,
+        2752
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.telegram.org/bot' + $('🔧 Config').first().json.BOT_TOKEN + '/editMessageReplyMarkup' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: $json.chat_id, message_id: $json.message_id, reply_markup: JSON.parse($json.reply_markup) }) }}",
+        "options": {}
+      },
+      "id": "b42a3b9d-ca9b-41ad-af1b-f27cb3698a90",
+      "name": "⌨️ Attach Keyboard",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2192,
+        1440
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nfunction buildMsgText(ls) {\n  return ls.map((l, i) => {\n    const inc  = l.inc  ? '<code>' + l.inc  + '</code>' : '';\n    const inet = l.inet ? '<code>' + l.inet + '</code>' : '';\n    const odp  = l.odp  ? '<code>' + l.odp  + '</code>' : '';\n    const tier = l.tier || '';\n    const rest = l.rest || '';\n    const parts = [inc, inet, odp, tier, rest].filter(Boolean);\n    const lineStr = parts.join(' | ');\n    const redStr = l.redaman !== null ? l.redaman : '<i>Belum diukur</i>';\n    const snStr  = l.sn ? '\\n   🔌 SN: <code>' + l.sn + '</code>' : '';\n    let progStr;\n    if (l.done) {\n      progStr = '✅ <b>Selesai</b>';\n      if (l.perbaikan) {\n        progStr += ': <i>' + l.perbaikan + '</i>';\n        if (l.penyebab) progStr += ' (<i>' + l.penyebab + '</i>)';\n      }\n    } else if (l.kendala) {\n      progStr = '⚠️ <b>Kendala</b>';\n      if (l.kendalaText) progStr += ': <i>' + l.kendalaText + '</i>';\n    } else {\n      progStr = '<i>Belum</i>';\n    }\n    if (l.done) {\n      return (i+1) + '. ✅ <s>' + lineStr + '</s>\\n   📡 ' + redStr + snStr + '\\n   📋 Progres: ' + progStr;\n    } else if (l.kendala) {\n      return (i+1) + '. ⚠️ <i>' + lineStr + '</i>\\n   📡 ' + redStr + snStr + '\\n   📋 Progres: ' + progStr;\n    } else {\n      return (i+1) + '. ⏳ ' + lineStr + '\\n   📡 ' + redStr + snStr + '\\n   📋 Progres: ' + progStr;\n    }\n  }).join('\\n\\n') + '\\n\\n─────────────────';\n}\n\nfunction buildKeyboard(ls, sk) {\n  const rows = [];\n  ls.forEach((l, i) => {\n    rows.push([\n      { text: '📶 Ukur #'+(i+1)+(l.redaman!==null?' 🔁':''), callback_data:'u:'+i+':'+sk },\n      { text: l.done    ? '↩️ Unmark #'+(i+1)        : '✅ Selesai #'+(i+1),   callback_data:'d:'+i+':'+sk },\n      { text: l.kendala ? '↩️ Batal Kendala #'+(i+1) : '⚠️ Kendala #'+(i+1),  callback_data:'k:'+i+':'+sk }\n    ]);\n    rows.push([{ text: '📋 Rekap #'+(i+1), callback_data:'r:'+i+':'+sk }]);\n  });\n  rows.push([\n    { text: '📡 Ukur Semua Redaman', callback_data:'a:'+sk },\n    { text: '➕ Tambah Tiket',       callback_data:'add:'+sk }\n  ]);\n  return rows;\n}\n\nfunction parseTicketText(text) {\n  const incM  = text.match(/NO TIKET\\s*:\\s*(INC\\d+)/i);\n  const inetM = text.match(/User Pelanggan\\s*:\\s*(172\\d{9,12})/i) || text.match(/\\b(172\\d{9,12})\\b/);\n  const odpM  = text.match(/ODP Alpro\\s*:\\s*(ODP-[^\\s\\n\\r]+)/i);\n  const tierM = text.match(/Customer Type\\s*:\\s*([^\\n\\r]+)/i);\n  if (incM) {\n    return {\n      inc:incM[1].trim(), inet:inetM?inetM[1].trim():'',\n      odp:odpM?odpM[1].trim():'', tier:tierM?tierM[1].trim():'',\n      rest:'', redaman:null, sn:null, done:false, kendala:false,\n      perbaikan:null, penyebab:null, kendalaText:null\n    };\n  }\n  const firstLine = text.split('\\n')[0];\n  const parts = firstLine.split('|').map(p => p.trim());\n  const inet2 = text.match(/\\b(172\\d{9,12})\\b/);\n  if (parts[0].match(/INC\\d+/i) || inet2) {\n    return {\n      inc:parts[0]||'', inet:inet2?inet2[1]:(parts[1]||''),\n      odp:parts[2]||'', tier:parts[3]||'',\n      rest:parts.slice(4).join(' | '),\n      redaman:null, sn:null, done:false, kendala:false,\n      perbaikan:null, penyebab:null, kendalaText:null\n    };\n  }\n  return null;\n}\n\nfunction parseRedaman(resultRaw) {\n  if (!resultRaw) return null;\n  const onuStatusM = resultRaw.match(/<b>ONU status[^<]*<\\/b>\\s*([^\\n<✅❌⚠️]+)/i);\n  const onuRxM     = resultRaw.match(/<b>ONU rx[^<]*<\\/b>\\s*([-\\d.]+)\\s*dBm/i);\n  const oltRxM     = resultRaw.match(/<b>OLT rx[^<]*<\\/b>\\s*([-\\d.]+)\\s*dBm/i);\n  const status = onuStatusM ? onuStatusM[1].replace(/[✅❌⚠️🔁\\s]+$/,'').trim() : '?';\n  const onuRx  = onuRxM ? onuRxM[1]+' dBm' : '?';\n  const oltRx  = oltRxM ? oltRxM[1]+' dBm' : '?';\n  return 'St: <b>'+status+'</b> | ONU: <b>'+onuRx+'</b> | OLT: <b>'+oltRx+'</b>';\n}\n\nconst { lineIndex, sessionKey, callbackQueryId } = $input.first().json;\nconst sd = $getWorkflowStaticData('global');\nconst session = sd[sessionKey];\nif (!session) return [];\nconst line = sd[sessionKey].lines[lineIndex];\n\nif (line.kendala) {\n  sd[sessionKey].lines[lineIndex].kendala    = false;\n  sd[sessionKey].lines[lineIndex].kendalaText = null;\n  return [{ json: {\n    _ask: false,\n    tg_method:    'editMessageText',\n    chat_id:      session.chatId,\n    message_id:   parseInt(session.messageId),\n    text:         buildMsgText(sd[sessionKey].lines),\n    parse_mode:   'HTML',\n    reply_markup: JSON.stringify({inline_keyboard:buildKeyboard(sd[sessionKey].lines,sessionKey)})\n  }}];\n}\n\nsd['_pending_keterangan'] = {\n  type:'kendala', step:'kendala',\n  lineIndex, sessionKey, chatId: session.chatId,\n  callbackQueryId: callbackQueryId || null\n};\nconst label = line.inc ? '<code>'+line.inc+'</code>' : 'tiket #'+(lineIndex+1);\nreturn [{ json: {\n  _ask: true,\n  tg_method:    'sendMessage',\n  chat_id:      session.chatId,\n  text:         '⚠️ <b>Kendalanya apa</b> untuk '+label+'?\\n\\n<i>Balas dengan keterangan kendalanya.</i>',\n  parse_mode:   'HTML',\n  reply_markup: JSON.stringify({inline_keyboard:[[{text:'❌ Batal',callback_data:'cancel:'+sessionKey}]]})\n}}];\n"
+      },
+      "id": "da5b5c1e-0152-44f9-95db-0bf7e4e17724",
+      "name": "⚠️ Toggle Kendala",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2016,
+        2960
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.telegram.org/bot' + $('🔧 Config').first().json.BOT_TOKEN + '/editMessageText' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: $json.chat_id, message_id: $json.message_id, text: $json.text, parse_mode: $json.parse_mode, reply_markup: JSON.parse($json.reply_markup) }) }}",
+        "options": {}
+      },
+      "id": "01997999-cd49-4d19-857e-d06ad4d5aa03",
+      "name": "✏️ Telegram: Edit (Kendala)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2544,
+        2976
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "ap1",
+                    "leftValue": "={{ $json._tg_action }}",
+                    "rightValue": "send",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Kirim Baru"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "ap2",
+                    "leftValue": "={{ $json._tg_action }}",
+                    "rightValue": "edit_after_input",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Edit After Input"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "ap4",
+                    "leftValue": "={{ $json._tg_action }}",
+                    "rightValue": "ask_penyebab",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Ask Penyebab"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "59323c0d-af46-42af-ab4d-1d5779aad62a",
+      "name": "🚦 Aksi Pesan",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        1440,
+        1680
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.telegram.org/bot' + $('🔧 Config').first().json.BOT_TOKEN + '/' + $('🚦 Aksi Pesan').first().json.tg_method }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $('🚦 Aksi Pesan').first().json.tg_method === 'editMessageText' ? JSON.stringify({ chat_id: $('🚦 Aksi Pesan').first().json.chat_id, message_id: $('🚦 Aksi Pesan').first().json.message_id, text: $('🚦 Aksi Pesan').first().json.text, parse_mode: $('🚦 Aksi Pesan').first().json.parse_mode, reply_markup: JSON.parse($('🚦 Aksi Pesan').first().json.reply_markup || '{}') }) : JSON.stringify({ chat_id: $('🚦 Aksi Pesan').first().json.chat_id, text: $('🚦 Aksi Pesan').first().json.text, parse_mode: $('🚦 Aksi Pesan').first().json.parse_mode }) }}",
+        "options": {}
+      },
+      "id": "a6fcc837-d334-4cc9-aa31-f46774d9278e",
+      "name": "✏️ Telegram: Edit (Pesan)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1664,
+        1680
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.telegram.org/bot' + $('🔧 Config').first().json.BOT_TOKEN + '/sendMessage' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: $json.chat_id, text: $json.text, parse_mode: $json.parse_mode }) }}",
+        "options": {}
+      },
+      "id": "e64b4fa6-9fd1-4d6a-94eb-b953d61d8d4f",
+      "name": "📤 Telegram: Send Error",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2800,
+        1808
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "n_if_del_c",
+              "leftValue": "={{ $('🚦 Aksi Pesan').first().json.delete_prompt_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "6fdf9f49-34ce-4aa1-9a39-ef2f3acbdd8b",
+      "name": "🔀 Ada Delete Prompt?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1856,
+        1680
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.telegram.org/bot' + $('🔧 Config').first().json.BOT_TOKEN + '/deleteMessage' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: $('🚦 Aksi Pesan').first().json.tg_chat_id, message_id: parseInt($('🚦 Aksi Pesan').first().json.delete_prompt_id) }) }}",
+        "options": {}
+      },
+      "id": "b25e8eb8-937d-44ba-892b-c734de5d3776",
+      "name": "🗑️ Delete Prompt",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2048,
+        1632
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "n_if_user_c",
+              "leftValue": "={{ $('🚦 Aksi Pesan').first().json.delete_user_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "03524ff4-6e82-4d5f-aa4e-448014a7c4a1",
+      "name": "🔀 Ada Delete User Msg?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2048,
+        1888
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.telegram.org/bot' + $('🔧 Config').first().json.BOT_TOKEN + '/deleteMessage' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: $('🚦 Aksi Pesan').first().json.tg_chat_id, message_id: parseInt($('🚦 Aksi Pesan').first().json.delete_user_id) }) }}",
+        "options": {}
+      },
+      "id": "ef9dd2ff-14cd-4ca9-91f9-5f89f421d436",
+      "name": "🗑️ Delete User Msg",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2400,
+        1872
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "n_if_cb_c",
+              "leftValue": "={{ $('🚦 Aksi Pesan').first().json.notify_cb_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "725655ae-0386-4856-b54a-c8f69182205a",
+      "name": "🔀 Ada Notify CB?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2320,
+        1632
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.telegram.org/bot' + $('🔧 Config').first().json.BOT_TOKEN + '/answerCallbackQuery' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ callback_query_id: $('🚦 Aksi Pesan').first().json.notify_cb_id, text: $('🚦 Aksi Pesan').first().json.notify_text }) }}",
+        "options": {}
+      },
+      "id": "f1776fc7-31ec-4a62-8cff-bd00b9d69407",
+      "name": "📢 Answer CB: Sukses",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2624,
+        1616
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "ds1",
+                    "leftValue": "={{ $json._ask }}",
+                    "rightValue": true,
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Tanya"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "ds2",
+                    "leftValue": "={{ $json._ask }}",
+                    "rightValue": false,
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Edit"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f565b21f-d936-4e6e-a67b-da19314d50e4",
+      "name": "🚦 Done: Tanya vs Edit",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        2272,
+        2528
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.telegram.org/bot' + $('🔧 Config').first().json.BOT_TOKEN + '/sendMessage' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: $json.chat_id, text: $json.text, parse_mode: $json.parse_mode, reply_markup: $json.reply_markup ? JSON.parse($json.reply_markup) : undefined }) }}",
+        "options": {}
+      },
+      "id": "ee417a41-e784-478e-8b64-a38e404e3b23",
+      "name": "💬 Telegram: Minta Keterangan",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2544,
+        2464
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst sd = $getWorkflowStaticData('global');\nconst body = $input.first().json;\nconst msgId = body?.result?.message_id || body?.message_id || null;\nif (msgId && sd['_pending_keterangan']) sd['_pending_keterangan'].promptMsgId = String(msgId);\nreturn $input.all();\n"
+      },
+      "id": "0195ea25-d650-4877-a7d9-30e50acbc1ad",
+      "name": "💾 Simpan Prompt MsgId (Ket)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2752,
+        2544
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "ks1",
+                    "leftValue": "={{ $json._ask }}",
+                    "rightValue": true,
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Tanya"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "ks2",
+                    "leftValue": "={{ $json._ask }}",
+                    "rightValue": false,
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Edit"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "2d386563-3691-4e7e-b550-d6954b0abfbe",
+      "name": "🚦 Kendala: Tanya vs Edit",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        2272,
+        2960
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.telegram.org/bot' + $('🔧 Config').first().json.BOT_TOKEN + '/deleteMessage' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: $getWorkflowStaticData('global')._step2_data?.tg_chat_id, message_id: parseInt($getWorkflowStaticData('global')._step2_data?.delete_prompt_id || 0) }) }}",
+        "options": {}
+      },
+      "id": "ea0c35f4-8fa9-4e23-9155-05a79cf256ee",
+      "name": "🗑️ Delete Prev Prompt (Step2)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2416,
+        2080
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.telegram.org/bot' + $('🔧 Config').first().json.BOT_TOKEN + '/deleteMessage' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: $getWorkflowStaticData('global')._step2_data?.tg_chat_id, message_id: parseInt($getWorkflowStaticData('global')._step2_data?.delete_user_id   || 0) }) }}",
+        "options": {}
+      },
+      "id": "04793d50-271e-45cc-98de-adefc3138183",
+      "name": "🗑️ Delete User Reply (Step1)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2704,
+        2080
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.telegram.org/bot' + $('🔧 Config').first().json.BOT_TOKEN + '/sendMessage' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: $json.tg_chat_id, text: $json.text, parse_mode: $json.parse_mode, reply_markup: JSON.parse($json.reply_markup || '{}') }) }}",
+        "options": {}
+      },
+      "id": "089fc339-a05b-492b-a553-7c5633ae6201",
+      "name": "💬 Telegram: Minta Penyebab",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        3328,
+        2080
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst sd = $getWorkflowStaticData('global');\nconst body = $input.first().json;\nconst msgId = body?.result?.message_id || body?.message_id || null;\nif (msgId && sd['_pending_keterangan']) sd['_pending_keterangan'].promptMsgId = String(msgId);\nreturn $input.all();\n"
+      },
+      "id": "c8327ccb-35a3-444b-a6cb-cadc5eb4072b",
+      "name": "💾 Simpan Prompt MsgId (Penyebab)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3616,
+        2080
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst { sessionKey } = $input.first().json;\nconst sd = $getWorkflowStaticData('global');\nconst session = sd[sessionKey];\nif (!session) return [];\nsd['_pending_add'] = { sessionKey, chatId: session.chatId };\nreturn [{ json: {\n  tg_method:    'sendMessage',\n  chat_id:      session.chatId,\n  text:         '➕ <b>Tambah Tiket Baru</b>\\n\\nKirim data tiket:\\n\\n1️⃣ <b>Copy-paste</b> dari grup WO\\n2️⃣ <b>Format singkat:</b>\\n<code>INC47xxx | 172418xxx | ODP-UBN-xxx | HVC_GOLD | keterangan</code>',\n  parse_mode:   'HTML',\n  reply_markup: JSON.stringify({inline_keyboard:[[{text:'❌ Batal',callback_data:'cancel:'+sessionKey}]]})\n}}];\n"
+      },
+      "id": "b0aa9a07-4b6c-4037-b5e4-1ebe91723c95",
+      "name": "⚙️ Siapkan Tambah",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2016,
+        3152
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.telegram.org/bot' + $('🔧 Config').first().json.BOT_TOKEN + '/sendMessage' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: $json.chat_id, text: $json.text, parse_mode: $json.parse_mode, reply_markup: $json.reply_markup ? JSON.parse($json.reply_markup) : undefined }) }}",
+        "options": {}
+      },
+      "id": "1d9f75e6-426b-4878-8c11-52d4e7f9f8ba",
+      "name": "💬 Telegram: Minta Tiket Baru",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2272,
+        3152
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst { lineIndex, sessionKey } = $input.first().json;\nconst sd = $getWorkflowStaticData('global');\nconst session = sd[sessionKey];\nif (!session) return [];\nconst l = session.lines[lineIndex];\nconst tier = (l.tier || '').toUpperCase();\nlet status='REGULER', kategori='B2C';\nif (tier.includes('INDIBIZ') || tier.includes('HSI_INDIBIZ')) { status='INDIBIZ'; kategori='B2B'; }\nconst rekap = [\n  '/Tiket ATAU SC : '+(l.inc||'-'),\n  'USER : '+(l.inet||'-'),\n  'STATUS : '+status,\n  'PENYEBAB : '+(l.penyebab||l.kendalaText||'-'),\n  'PERBAIKAN : '+(l.perbaikan||'-'),\n  'Nik1 : 16974028','Nik2 : -','Nik3 : -',\n  'Kategori : '+kategori\n].join('\\n');\nreturn [{ json: {\n  tg_method:  'sendMessage', chat_id: session.chatId,\n  text:       '<b>📋 Rekap Tiket #'+(lineIndex+1)+':</b>\\n\\n<code>'+rekap+'</code>\\n\\n<i>Tap teks di atas untuk menyalin semua sekaligus.</i>',\n  parse_mode: 'HTML'\n}}];\n"
+      },
+      "id": "cdc4c713-4f41-4369-b0bb-bacd46a5117f",
+      "name": "⚙️ Siapkan Rekap",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2016,
+        3328
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.telegram.org/bot' + $('🔧 Config').first().json.BOT_TOKEN + '/sendMessage' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: $json.chat_id, text: $json.text, parse_mode: $json.parse_mode }) }}",
+        "options": {}
+      },
+      "id": "372960bb-813c-476a-ac80-56c79fb207f2",
+      "name": "📤 Telegram: Send Rekap",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2272,
+        3328
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst { sessionKey, chatId } = $input.first().json;\nconst sd = $getWorkflowStaticData('global');\nlet promptMsgId = null, targetChatId = chatId;\nconst pk = sd['_pending_keterangan'];\nconst pa = sd['_pending_add'];\nif (pk && (pk.sessionKey === sessionKey || String(pk.chatId) === chatId)) {\n  promptMsgId  = pk.promptMsgId;\n  targetChatId = String(pk.chatId);\n  delete sd['_pending_keterangan'];\n} else if (pa && (pa.sessionKey === sessionKey || String(pa.chatId) === chatId)) {\n  promptMsgId  = pa.promptMsgId;\n  targetChatId = String(pa.chatId);\n  delete sd['_pending_add'];\n}\nif (!promptMsgId || !targetChatId) return [];\nreturn [{ json: { tg_method:'deleteMessage', chat_id:targetChatId, message_id:parseInt(promptMsgId) }}];\n"
+      },
+      "id": "93979709-2ee5-4515-a40a-b76bee5911eb",
+      "name": "⚙️ Siapkan Cancel",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2016,
+        3504
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.telegram.org/bot' + $('🔧 Config').first().json.BOT_TOKEN + '/deleteMessage' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: $json.chat_id, message_id: $json.message_id }) }}",
+        "options": {}
+      },
+      "id": "02d7a71b-1336-4b05-826e-6fd7e090db64",
+      "name": "🗑️ Delete Prompt (Cancel)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2272,
+        3504
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.telegram.org/bot' + $('🔧 Config').first().json.BOT_TOKEN + '/answerCallbackQuery' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ callback_query_id: $('💬 Siapkan answerCB').first().json.callback_query_id, text: $('📊 Aggregate Semua').first().json.summary_text }) }}",
+        "options": {}
+      },
+      "id": "bd6e40ed-6c8e-4191-a1b6-66941e16ed86",
+      "name": "📢 Summary Ukur Semua",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2992,
+        2752
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// Simpan data ask_penyebab ke static data supaya tidak hilang setelah HTTP calls\nconst sd = $getWorkflowStaticData('global');\nconst item = $input.first().json;\nsd['_step2_data'] = {\n  delete_prompt_id: item.delete_prompt_id || null,\n  delete_user_id:   item.delete_user_id   || null,\n  tg_chat_id:       item.tg_chat_id       || null,\n  text:             item.text             || '',\n  parse_mode:       item.parse_mode       || 'HTML',\n  reply_markup:     item.reply_markup     || null\n};\nreturn $input.all();\n"
+      },
+      "id": "7f812bec-52a8-4903-8a99-ddb8ad015432",
+      "name": "💾 Simpan Data Step2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2176,
+        2080
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// Baca data step2 dari static data untuk diteruskan ke Minta Penyebab\nconst sd = $getWorkflowStaticData('global');\nconst data = sd['_step2_data'] || {};\nreturn [{ json: data }];\n"
+      },
+      "id": "ee400c2b-e4db-4c13-98b5-ec6007fd5258",
+      "name": "📖 Baca Data Step2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3008,
+        2080
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst sd = $getWorkflowStaticData('global');\nconst body = $input.first().json;\nconst msgId = body?.result?.message_id || body?.message_id || null;\nif (msgId && sd['_pending_add']) sd['_pending_add'].promptMsgId = String(msgId);\nreturn $input.all();\n"
+      },
+      "id": "668bb852-fa25-4c4a-94c3-84d13390ea07",
+      "name": "💾 Simpan Prompt MsgId (Add)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2544,
+        3152
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "🔧 Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔧 Config": {
+      "main": [
+        [
+          {
+            "node": "🚦 Msg vs Callback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🚦 Msg vs Callback": {
+      "main": [
+        [
+          {
+            "node": "📋 Parse & Siapkan Tiket",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "🔍 Parse Callback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📋 Parse & Siapkan Tiket": {
+      "main": [
+        [
+          {
+            "node": "🚦 Aksi Pesan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📨 Telegram: sendMessage": {
+      "main": [
+        [
+          {
+            "node": "💾 Simpan messageId",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔍 Parse Callback": {
+      "main": [
+        [
+          {
+            "node": "💬 Siapkan answerCB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "💬 Siapkan answerCB": {
+      "main": [
+        [
+          {
+            "node": "📣 Telegram: answerCB",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "🚦 u / d / a",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🚦 u / d / a": {
+      "main": [
+        [
+          {
+            "node": "⚙️ Siapkan Ukur Single",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "✅ Toggle Done",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "⚙️ Siapkan Ukur Semua",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "⚠️ Toggle Kendala",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "⚙️ Siapkan Tambah",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "⚙️ Siapkan Rekap",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "⚙️ Siapkan Cancel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⚙️ Siapkan Ukur Single": {
+      "main": [
+        [
+          {
+            "node": "🔬 FUCK LENSA: Ukur Single",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔬 FUCK LENSA: Ukur Single": {
+      "main": [
+        [
+          {
+            "node": "📝 Proses Hasil Single",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📝 Proses Hasil Single": {
+      "main": [
+        [
+          {
+            "node": "✏️ Telegram: Edit (Single)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✅ Toggle Done": {
+      "main": [
+        [
+          {
+            "node": "🚦 Done: Tanya vs Edit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⚙️ Siapkan Ukur Semua": {
+      "main": [
+        [
+          {
+            "node": "🔬 FUCK LENSA: Ukur Semua",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔬 FUCK LENSA: Ukur Semua": {
+      "main": [
+        [
+          {
+            "node": "📊 Aggregate Semua",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📊 Aggregate Semua": {
+      "main": [
+        [
+          {
+            "node": "✏️ Telegram: Edit (Semua)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "💾 Simpan messageId": {
+      "main": [
+        [
+          {
+            "node": "⌨️ Attach Keyboard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⚠️ Toggle Kendala": {
+      "main": [
+        [
+          {
+            "node": "🚦 Kendala: Tanya vs Edit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🚦 Aksi Pesan": {
+      "main": [
+        [
+          {
+            "node": "📨 Telegram: sendMessage",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "✏️ Telegram: Edit (Pesan)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "💾 Simpan Data Step2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🚦 Done: Tanya vs Edit": {
+      "main": [
+        [
+          {
+            "node": "💬 Telegram: Minta Keterangan",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "✏️ Telegram: Edit (Done)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🚦 Kendala: Tanya vs Edit": {
+      "main": [
+        [
+          {
+            "node": "💬 Telegram: Minta Keterangan",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "✏️ Telegram: Edit (Kendala)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⚙️ Siapkan Tambah": {
+      "main": [
+        [
+          {
+            "node": "💬 Telegram: Minta Tiket Baru",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⚙️ Siapkan Rekap": {
+      "main": [
+        [
+          {
+            "node": "📤 Telegram: Send Rekap",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✏️ Telegram: Edit (Pesan)": {
+      "main": [
+        [
+          {
+            "node": "🔀 Ada Delete Prompt?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 Ada Delete Prompt?": {
+      "main": [
+        [
+          {
+            "node": "🗑️ Delete Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "🔀 Ada Delete User Msg?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🗑️ Delete Prompt": {
+      "main": [
+        [
+          {
+            "node": "🔀 Ada Delete User Msg?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 Ada Delete User Msg?": {
+      "main": [
+        [
+          {
+            "node": "🗑️ Delete User Msg",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "🔀 Ada Notify CB?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🗑️ Delete User Msg": {
+      "main": [
+        [
+          {
+            "node": "🔀 Ada Notify CB?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 Ada Notify CB?": {
+      "main": [
+        [],
+        [
+          {
+            "node": "📢 Answer CB: Sukses",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🗑️ Delete Prev Prompt (Step2)": {
+      "main": [
+        [
+          {
+            "node": "🗑️ Delete User Reply (Step1)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🗑️ Delete User Reply (Step1)": {
+      "main": [
+        [
+          {
+            "node": "📖 Baca Data Step2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "💬 Telegram: Minta Penyebab": {
+      "main": [
+        [
+          {
+            "node": "💾 Simpan Prompt MsgId (Penyebab)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "💬 Telegram: Minta Keterangan": {
+      "main": [
+        [
+          {
+            "node": "💾 Simpan Prompt MsgId (Ket)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "💬 Telegram: Minta Tiket Baru": {
+      "main": [
+        [
+          {
+            "node": "💾 Simpan Prompt MsgId (Add)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⚙️ Siapkan Cancel": {
+      "main": [
+        [
+          {
+            "node": "🗑️ Delete Prompt (Cancel)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✏️ Telegram: Edit (Semua)": {
+      "main": [
+        [
+          {
+            "node": "📢 Summary Ukur Semua",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "💾 Simpan Data Step2": {
+      "main": [
+        [
+          {
+            "node": "🗑️ Delete Prev Prompt (Step2)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📖 Baca Data Step2": {
+      "main": [
+        [
+          {
+            "node": "💬 Telegram: Minta Penyebab",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "189eff39-c975-49cc-8208-f0cb6b17da8c",
+  "meta": {
+    "instanceId": "df83e2e9d1f0f38fbfca14582d23386ff20c4534778a7edceef02ef17dc8f869"
+  },
+  "id": "chuqcEo4ap7GeuGq",
+  "tags": []
+}

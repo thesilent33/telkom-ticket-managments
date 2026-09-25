@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#4f46e5">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>🎟️ Ticket Manager</title>
+  <meta name="description" content="Manajemen tiket gangguan internet untuk teknisi lapangan">
+
+  <!-- Preconnect -->
+  <link rel="preconnect" href="https://cdn.tailwindcss.com">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Supabase JS v2 -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ── Loading Bar ──────────────────────────────────────────────── -->
+<div id="loading-bar"></div>
+
+<!-- ── Header ───────────────────────────────────────────────────── -->
+<header class="app-header">
+  <div>
+    <div class="app-title">
+      🎟️ Ticket Manager
+      <span class="realtime-dot" title="Realtime aktif"></span>
+    </div>
+    <div class="app-subtitle" id="ticket-summary">Memuat tiket...</div>
+  </div>
+  <button class="btn-add-header" data-action="add">
+    <span>➕</span>
+    <span>Tambah</span>
+  </button>
+</header>
+
+<!-- ── Filter Bar ────────────────────────────────────────────────── -->
+<div class="filter-bar" role="tablist" aria-label="Filter tiket">
+
+  <!-- Filter Status -->
+  <div class="filter-group">
+    <button class="btn-filter active" data-filter-status="all">
+      Semua <span class="filter-count" id="count-all">0</span>
+    </button>
+    <button class="btn-filter" data-filter-status="open">
+      ⏳ Open <span class="filter-count" id="count-open">0</span>
+    </button>
+    <button class="btn-filter" data-filter-status="done">
+      ✅ Selesai <span class="filter-count" id="count-done">0</span>
+    </button>
+    <button class="btn-filter" data-filter-status="kendala">
+      ⚠️ Kendala <span class="filter-count" id="count-kendala">0</span>
+    </button>
+  </div>
+
+  <div class="filter-divider"></div>
+
+  <!-- Filter Tier -->
+  <div class="filter-group">
+    <button class="btn-filter" data-filter-tier="all">Semua Tier</button>
+    <button class="btn-filter" data-filter-tier="HVC_DIAMOND">💎 Diamond</button>
+    <button class="btn-filter" data-filter-tier="HVC_PLATINUM">⚪ Platinum</button>
+    <button class="btn-filter" data-filter-tier="HVC_GOLD">🟡 Gold</button>
+    <button class="btn-filter" data-filter-tier="INDIBIZ">🔵 Indibiz</button>
+    <button class="btn-filter" data-filter-tier="REGULER">⚫ Reguler</button>
+  </div>
+
+</div>
+
+<!-- ── Tickets Container ─────────────────────────────────────────── -->
+<main id="tickets-container" role="main" aria-label="Daftar tiket">
+  <!-- Kartu tiket di-render oleh JS -->
+  <div class="empty-state">
+    <div class="empty-icon">⏳</div>
+    <p>Memuat tiket...</p>
+  </div>
+</main>
+
+<!-- ── Modal ─────────────────────────────────────────────────────── -->
+<div id="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+  <div id="modal-box">
+    <div id="modal-body">
+      <!-- Diisi oleh JS -->
+    </div>
+    <div class="modal-footer">
+      <button id="modal-cancel"  class="btn-modal-cancel">Batal</button>
+      <button id="modal-confirm" class="btn-modal-confirm">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Toast ──────────────────────────────────────────────────────── -->
+<!-- Di-render oleh JS saat dibutuhkan -->
+
+<!-- ── Scripts (ES Modules) ───────────────────────────────────────── -->
+<script type="module" src="js/app.js"></script>
+
+<!-- ── Inline: update ticket summary header ──────────────────────── -->
+<script type="module">
+  // Update subtitle header dengan jumlah tiket
+  const obs = new MutationObserver(() => {
+    const cards = document.querySelectorAll('.ticket-card');
+    const done  = document.querySelectorAll('.card-done').length;
+    const all   = cards.length;
+    const sub   = document.getElementById('ticket-summary');
+    if (sub && all > 0) {
+      sub.textContent = `${all} tiket · ${done} selesai`;
+    } else if (sub) {
+      sub.textContent = 'Belum ada tiket';
+    }
+  });
+  obs.observe(document.getElementById('tickets-container'), { childList: true, subtree: true });
+</script>
+
+</body>
+</html>

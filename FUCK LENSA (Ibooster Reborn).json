@@ -1,0 +1,774 @@
+{
+  "name": "FUCK LENSA (Ibooster Reborn)",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        1856,
+        288
+      ],
+      "id": "2546540a-b02a-4c0b-b055-04f6f955a2e4",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "url": "https://lensa.tacc.id/api/ukur_ibooster",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "inet",
+              "value": "={{ $json.q }}"
+            },
+            {
+              "name": "nik",
+              "value": "16974028"
+            },
+            {
+              "name": "nama",
+              "value": "=JONI%20SUBROTO"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "authorization",
+              "value": "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL2xlbnNhLnRhY2MuaWQvYXBpL2xvZ2luIiwiaWF0IjoxNzI4NjIwODczLCJuYmYiOjE3Mjg2MjA4NzMsImp0aSI6IjFjQk9NOXIxbDZtbkVoV0kiLCJzdWIiOiIxIiwicHJ2IjoiMjNiZDVjODk0OWY2MDBhZGIzOWU3MDFjNDAwODcyZGI3YTU5NzZmNyJ9.QF0GB9-RcQ5YMfxeF6sjHPJQDDXM_Qa6NMnNCsm8VoQ"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 8000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        464,
+        -272
+      ],
+      "id": "56115c72-5295-49b0-ae34-ace096310e9a",
+      "name": "HTTP Request",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ \n  $(\"Telegram Trigger\").item.json.message?.chat?.id \n  ?? $(\"Telegram Trigger\").item.json.callback_query?.message?.chat?.id ?? $(\"When Executed by Another Workflow\").item.json.chatid\n}}\n",
+        "text": "={{ $json.message }}",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "=Ulangi Ukur {{ $json.q }}",
+                    "additionalFields": {
+                      "callback_data": "={{ 'retest:' + ($('Route Command').first().json.q || $json.q) }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1488,
+        -288
+      ],
+      "id": "72dc9c76-cf44-4982-801d-3b5188d98df2",
+      "name": "Send a text message",
+      "webhookId": "68097eb9-28bb-4f52-95dc-7d34883d2509",
+      "credentials": {
+        "telegramApi": {
+          "id": "VQcxZXbJJdyeoi4q",
+          "name": "Fuck LENSA Bot"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message",
+          "callback_query"
+        ],
+        "additionalFields": {
+          "userIds": ""
+        }
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        464,
+        -528
+      ],
+      "id": "810cdc27-af76-46a9-a431-bda4b9130001",
+      "name": "Telegram Trigger",
+      "webhookId": "c27c741e-a5b8-42b5-93b3-d185547f120c",
+      "credentials": {
+        "telegramApi": {
+          "id": "VQcxZXbJJdyeoi4q",
+          "name": "Fuck LENSA Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// change the value of TARGET_ACCOUNT to the X username you want to scrap\nconst message = \"Yah... Tampaknya server i-booster lagi error nih, bisa coba lagi nanti ya... 😓 (Berdoa juga agar Telkom ngasih server yg lebih layak dari ini 🙏)\";\nreturn [{ json: { message } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        -16
+      ],
+      "id": "a9f505e6-e7d5-4500-8de0-2b7e8325cf5e",
+      "name": "If server return error"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.mode }}",
+                    "rightValue": "reply",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "ad4f23a0-f7b7-4789-abd6-6f167011c063"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Reply"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "d29ddfbf-eab6-4681-9e25-7c3a5ef1f898",
+                    "leftValue": "={{ $json.mode }}",
+                    "rightValue": "ukur",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Ukur"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "af5d85f0-8ae0-4634-b682-89b3a5bfc863",
+                    "leftValue": "={{ $json.mode }}",
+                    "rightValue": "unknown",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Unknown"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        1184,
+        -544
+      ],
+      "id": "8bb39842-930e-4b2e-a8fa-0bb92998c5a1",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const root = $input.item.json;\n\nlet command = null;\nlet args = [];\nlet rawText = \"\";\nlet chat_id = null;\nlet from_id = null;\nlet from_username = null;\nlet from_name = null;\nlet inet = null;\nlet isCommand = false;\nlet fromCallback = false;\n\n// === 1. EVENT DARI TOMBOL (INLINE BUTTON) ===\nif (root.callback_query) {\n  const cb = root.callback_query;\n  const data = cb.data || \"\";          // misal: \"retest:172418621229\"\n\n  fromCallback = true;\n\n  chat_id = cb.message?.chat?.id || null;\n  from_id = cb.from?.id || null;\n  from_username = cb.from?.username || null;\n  from_name = [\n    cb.from?.first_name || \"\",\n    cb.from?.last_name  || \"\",\n  ].join(\" \").trim() || null;\n\n  if (data.startsWith(\"retest:\")) {\n    inet = data.split(\":\")[1] || \"\";\n\n    // kita anggap ini perintah \"ukur lagi nomor yg sama\"\n    isCommand = true;\n    command = \"ukur\";   // seolah user kirim /ukur <INET>\n    args = [inet];\n  }\n}\n\n// === 2. EVENT PESAN BIASA ===\nelse {\n  const msg =\n    root.message ??\n    root.edited_message ??\n    root.channel_post ??\n    {};\n\n  rawText = (msg.text ?? msg.caption ?? \"\").trim();\n\n  chat_id = msg.chat?.id ?? null;\n  from_id = msg.from?.id ?? null;\n  from_username = msg.from?.username ?? null;\n  from_name = [\n    msg.from?.first_name ?? \"\",\n    msg.from?.last_name  ?? \"\",\n  ].join(\" \").trim() || null;\n\n  if (rawText.startsWith(\"/\")) {\n    const parts = rawText.split(/\\s+/);\n    const first = parts[0];\n\n    command = first.slice(1).split(\"@\")[0];\n    args = parts.slice(1);\n    isCommand = true;\n  }\n}\n\nreturn {\n  json: {\n    isCommand,\n    command,\n    args,\n    rawText,\n    chat_id,\n    from_id,\n    from_username,\n    from_name,\n    inet,          // INET dari tombol (kalau ada)\n    fromCallback,  // penanda bahwa ini event dari tombol\n  },\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        688,
+        -528
+      ],
+      "id": "a05aca0d-f82e-4b6a-b50b-5208cac48853",
+      "name": "Parse Command"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const input = $input.item.json;\n\nconst chatId = String(input.chat_id);\nconst text = (input.rawText || \"\").trim();\nconst isCommand = !!input.isCommand;\nconst command = input.command || null;\nconst args = input.args || [];\n\n// Static data global\nconst wfData = $getWorkflowStaticData(\"global\");\nif (!wfData.chatStates) wfData.chatStates = {};\nconst chatState = wfData.chatStates[chatId] || { mode: null, lastQuery: null, lastType: null };\n\n// === REGEX ===\n\n// SN: uppercase alfanumerik, panjang 10-12 (contoh kamu 10-12)\n// Kalau kamu mau lebih longgar, ganti {10,12} jadi {8,16}\nconst snRegex = /^[A-Z0-9]{10,12}$/;\n\n// Helper normalisasi input jadi kandidat INET / SN\nfunction parseCandidate(str) {\n  const s = String(str || \"\").trim();\n\n  // ✅ INET: cari 12 digit SEBAGAI SEKUENS (bukan gabung semua digit)\n  // contoh: \"INET: 172418621229\", \"no inet 172418621229 (cek)\", forward panjang, dll\n  const mInet = s.match(/(^|[^\\d])(\\b172\\d{9}\\b)([^\\d]|$)/);\nif (mInet?.[2]) {\n  return { type: \"inet\", value: mInet[2] };\n}\n\n\n  // ✅ SN: cari token alfanumerik 8–16 (ambil yang paling “niat”)\n  // - uppercasing biar kuat kalau forward lowercase\n  // - ambil match pertama yang valid\n  const upper = s.toUpperCase();\n// token 10–16 char alnum, dan wajib ada huruf (biar angka doang gak dianggap SN)\nconst mSn = upper.match(/\\b(?=[A-Z0-9]{10,16}\\b)(?=.*[A-Z])[A-Z0-9]+\\b/);\nif (mSn?.[0]) {\n  return { type: \"sn\", value: mSn[0] };\n}\n\n\n  return null;\n}\n\n\nlet mode = \"reply\";\nlet message = \"\";\nlet inet = null;      // tetap ada supaya workflow kamu yang lama gak pecah\nlet sn = null;        // SN terpisah\nlet q = null;         // query umum (inet/sn)\nlet qType = null;     // \"inet\" / \"sn\"\n\nconst fromCallback = input.fromCallback || false;\n\n// 🟢 KASUS TOMBOL \"ULANGI UKUR\"\n// (Saat ini kamu masih kirim input.inet dari callback. Kita dukung dua-duanya:\n// - kalau input.inet ada -> pakai itu\n// - kalau nanti kamu ubah callback jadi input.q -> tetap jalan)\nif (fromCallback) {\n  // Ambil kandidat dari mana pun yang tersedia (paling sering args[0])\n  const cbValue =\n    input.q ??\n    input.inet ??\n    input.sn ??\n    (Array.isArray(input.args) ? input.args[0] : null) ??\n    input.rawText ??\n    \"\";\n\n  const parsed = parseCandidate(cbValue);\n\n  if (parsed) {\n    qType = parsed.type;\n    q = parsed.value;\n\n    if (qType === \"inet\") inet = q;\n    if (qType === \"sn\") sn = q;\n\n    chatState.lastQuery = q;\n    chatState.lastType = qType;\n\n    message = \"Tunggu yaa...\";\n    mode = \"ukur\";\n\n    wfData.chatStates[chatId] = chatState;\n\n    return {\n      json: {\n        ...input,\n        mode,\n        message,\n        inet,\n        sn,\n        q,\n        qType,\n        chatStateMode: chatState.mode,\n      },\n    };\n  }\n\n  // Kalau callback tapi datanya aneh/kosong, jangan jatuh ke await_id (biar gak \"Input tidak valid\")\n  message = \"Data tombol tidak terbaca. Coba ketik ulang INET/SN atau tekan /ukur lagi.\";\n  mode = \"reply\";\n\n  wfData.chatStates[chatId] = chatState;\n\n  return {\n    json: {\n      ...input,\n      mode,\n      message,\n      inet: null,\n      sn: null,\n      q: null,\n      qType: null,\n      chatStateMode: chatState.mode,\n    },\n  };\n}\n\n\n// ============ 1) PESAN COMMAND ============\nif (isCommand) {\n  // Kalau command BUKAN /ukur → keluar dari mode ukur\n  if (command !== \"ukur\") {\n    chatState.mode = null;\n  }\n\n  if (command === \"help\") {\n    message =\n`Cara pakai bot ini:\n/help  — Lihat panduan\n/about — Info bot\n/ukur  — Masuk mode ukur\n\nSetelah /ukur, kamu bisa kirim:\n- Nomor INET (12 digit), atau\n- SN ONT (contoh: ZTEGC8378EBB / HWTC6B25FEB5)\nberkali-kali tanpa ngetik /ukur lagi.`;\n    mode = \"reply\";\n  }\n\n  else if (command === \"about\") {\n    message =\n`Ini bot buat bantu teknisi cek hasil i-booster <b>TANPA RIBET</b> langsung dari Telegram.\n\nPerintah utama:\n/ukur — ukur pakai INET atau SN.`;\n    mode = \"reply\";\n  }\n\n  else if (command === \"start\") {\n    message =\n`Selamat datang di bot Ibooster Reborn! \n\nLemot, tidak ramah pengguna, tidak intuitif, boros baterai, selalu bikin emosi... pokoknya <b>MENYEBALKAN!</b> Itulah LENSA. 😾\nBot ini lahir sebagai bentuk perlawanan dan membuat hidup teknisi jauh lebih mudah, tanpa drama dan tanpa nunggu loading muter-muter cuma buat dapat pesan error. ✊🏻\n\nKetik /help untuk panduan, atau /ukur untuk mulai ukur.`;\n    mode = \"reply\";\n  }\n\n  else if (command === \"ukur\") {\n    const candidate = args[0] || null;\n\n    // Masuk mode ukur\n    chatState.mode = \"await_id\";\n\n    if (!candidate) {\n      message =\n`Masuk mode ukur.\n\nSilakan kirim salah satu:\n- Nomor INET (12 digit), atau\n- SN ONT (contoh: ZTEGC8378EBB)\n\nContoh INET:\n172418621229\n\nContoh SN:\nZTEGC8378EBB`;\n      mode = \"reply\";\n    } else {\n      const parsed = parseCandidate(candidate);\n\n      if (!parsed) {\n        message =\n`Input tidak valid.\n\nKirim salah satu:\n- INET 12 digit (contoh: /ukur 172418621229)\n- SN ONT (contoh: /ukur ZTEGC8378EBB)\n\nAtau setelah /ukur tanpa parameter, kirim INET/SN langsung.`;\n        mode = \"reply\";\n      } else {\n        qType = parsed.type;\n        q = parsed.value;\n\n        if (qType === \"inet\") inet = q;\n        if (qType === \"sn\") sn = q;\n\n        chatState.lastQuery = q;\n        chatState.lastType = qType;\n\n        message = \"Tunggu yaa...\";\n        mode = \"ukur\";\n      }\n    }\n  }\n\n  else {\n    message =\n`Aku cuma kenal command:\n/start, /help, /about, /ukur`;\n    mode = \"reply\";\n  }\n}\n\n// ============ 2) BUKAN COMMAND ============\nelse {\n  if (chatState.mode === \"await_id\") {\n    const parsed = parseCandidate(text);\n\n    if (!parsed) {\n      message = \"Input tidak valid\";\n      mode = \"reply\";\n    } else {\n      qType = parsed.type;\n      q = parsed.value;\n      message = \"Tunggu yaa...\";\n      mode = \"ukur\";\n    }\n\n  } else {\n    // AUTO-DETECT\n    const parsedAuto = parseCandidate(text);\n\n    if (parsedAuto) {\n      qType = parsedAuto.type;\n      q = parsedAuto.value;\n      message = \"Tunggu yaa...\";\n      mode = \"ukur\";\n    } else {\n      message = \"Ketik /ukur dulu\";\n      mode = \"reply\";\n    }\n  }\n}\n\n\n\n// Simpan state\nwfData.chatStates[chatId] = chatState;\n\n// Return item\nreturn {\n  json: {\n    ...input,\n    mode,\n    message,\n    inet,\n    sn,\n    q,\n    qType,\n    chatStateMode: chatState.mode,\n  },\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        928,
+        -528
+      ],
+      "id": "2df42a51-4d65-4a4d-a251-093b97b65864",
+      "name": "Route Command"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// ===== Helper: escape HTML Telegram =====\nfunction esc(str) {\n  return String(str ?? \"\")\n    .replace(/&/g, \"&amp;\")\n    .replace(/</g, \"&lt;\")\n    .replace(/>/g, \"&gt;\");\n}\n\nconst d = $input.item.json.data ?? [];\n\nfunction raw(i) {\n  return d?.[i]?.value ?? \"\";\n}\nfunction val(i) {\n  return esc(raw(i));\n}\n\n// ===== Emoji mapping =====\nconst OK = \"✅\";\nconst WARN = \"⚠️\";\nconst BAD = \"❌\";\nconst UNKNOWN = \"❔\";\n\n// ===== ONU STATUS =====\nfunction onuStatusEmoji(s) {\n  const t = String(s ?? \"\").toUpperCase();\n  if (t.includes(\"ONLINE\")) return OK;\n  if (t.includes(\"LOS\")) return BAD;\n  if (t.includes(\"DYING GASP\")) return UNKNOWN;\n  return WARN;\n}\n\n// ===== RX HANDLING =====\nfunction stripUnit(v) {\n  return String(v ?? \"\").replace(/dBm/gi, \"\").trim();\n}\n\nfunction rxEmoji(v) {\n  const n = parseFloat(stripUnit(v));\n  if (Number.isNaN(n)) return BAD;\n\n  // nilai ekstrem = LOS / data rusak\n  if (n < -60 || n > 0) return BAD;\n\n  if (n < -23.99) return WARN;\n  return OK;\n}\n\nfunction rxText(v) {\n  return esc(stripUnit(v));\n}\n\n// ===== ACS STATUS =====\nfunction acsEmoji(v) {\n  return String(v ?? \"\").toLowerCase() === \"online\" ? OK : WARN;\n}\n\n// ===== DATA =====\nconst msg = esc($input.item.json.message ?? \"\");\nconst kes = esc($input.item.json.kesimpulan ?? \"\");\n\nconst onuStatusRaw = raw(9);\nconst onuRxRaw = raw(19);\nconst oltRxRaw = raw(22);\nconst acsRaw = raw(32);\n\n// ===== RESULT EMOJI =====\nfunction resultEmoji() {\n  const m = String($input.item.json.message ?? \"\");\n  const k = String($input.item.json.kesimpulan ?? \"\");\n\n  if (/Hasil pengukuran\\s*BAIK/i.test(k)) return OK;\n  if (/Status ONT\\s*LOS/i.test(m)) return BAD;\n  if (/dibawah standar/i.test(m) || /-25/i.test(m)) return WARN;\n\n  if (rxEmoji(onuRxRaw) === BAD || rxEmoji(oltRxRaw) === BAD) return BAD;\n  if (rxEmoji(onuRxRaw) === WARN || rxEmoji(oltRxRaw) === WARN) return WARN;\n\n  return OK;\n}\n\n// ===== BUILD MESSAGE =====\nconst message =\n`${msg}\n<b>${kes}</b> ${resultEmoji()}\n\n<b>ONU status:</b> ${esc(onuStatusRaw)} ${onuStatusEmoji(onuStatusRaw)}\n<b>ONU rx:</b> ${rxText(onuRxRaw)} dBm ${rxEmoji(onuRxRaw)}\n<b>OLT rx:</b> ${rxText(oltRxRaw)} dBm ${rxEmoji(oltRxRaw)}\n<b>SN ONT:</b> <code>${val(8)}</code> (${val(7)})\n<b>Conn status (ACS):</b> ${esc(acsRaw)} ${acsEmoji(acsRaw)}\n<b>PCRF (Paket):</b> ${val(34)}\n<b>GPON:</b> ${val(0)}\n`;\n\nreturn {\n  json: {\n    message\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        -192
+      ],
+      "id": "6a3fa9d6-f4ca-474a-8364-17306d1c9d5e",
+      "name": "Return kesimpulan"
+    },
+    {
+      "parameters": {
+        "jsCode": "// change the value of TARGET_ACCOUNT to the X username you want to scrap\nconst message = $input.first().json.message;\n\nreturn [{ json: { message } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1488,
+        -528
+      ],
+      "id": "4c0521d3-ee11-4fb5-9e7c-acbfa832d83c",
+      "name": "Ukur"
+    },
+    {
+      "parameters": {
+        "resource": "callback",
+        "queryId": "={{ $('Telegram Trigger').item.json.callback_query.id }}",
+        "additionalFields": {
+          "text": "={{ $('HTTP Request').item.json.kesimpulan }}"
+        }
+      },
+      "id": "61c02759-4f55-40aa-8bc4-6ba6574764bf",
+      "name": "Stop Inline Keyboard Loading",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1712,
+        -288
+      ],
+      "webhookId": "66e49314-6d8b-46df-83b1-779623b6bd88",
+      "credentials": {
+        "telegramApi": {
+          "id": "VQcxZXbJJdyeoi4q",
+          "name": "Fuck LENSA Bot"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "q"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        176,
+        -272
+      ],
+      "id": "60c6b0ea-6b5e-4504-99b8-26c549cc76fc",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.ukur }}",
+                    "rightValue": "reply",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "false",
+                      "singleValue": true
+                    },
+                    "id": "ad4f23a0-f7b7-4789-abd6-6f167011c063"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "If hasil ukur invalid"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "d29ddfbf-eab6-4681-9e25-7c3a5ef1f898",
+                    "leftValue": "={{ $json.message }}",
+                    "rightValue": "Maaf, sepertinya sistem ",
+                    "operator": {
+                      "type": "string",
+                      "operation": "regex"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Maaf, sepertinya sistem..."
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        672,
+        -320
+      ],
+      "id": "b622a6a5-dd54-41e6-a771-8bf6a6b1327f",
+      "name": "Switch1"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ \n  $(\"Telegram Trigger\").item.json.message?.chat?.id \n  ?? $(\"Telegram Trigger\").item.json.callback_query?.message?.chat?.id \n}}\n",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1760,
+        -528
+      ],
+      "id": "acc371d0-aa35-417a-9835-eef4649f9834",
+      "name": "Tunggu ya...",
+      "webhookId": "68097eb9-28bb-4f52-95dc-7d34883d2509",
+      "credentials": {
+        "telegramApi": {
+          "id": "VQcxZXbJJdyeoi4q",
+          "name": "Fuck LENSA Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Return kesimpulan').item.json.message }}",
+                    "rightValue": "Berikut",
+                    "operator": {
+                      "type": "string",
+                      "operation": "empty",
+                      "singleValue": true
+                    },
+                    "id": "ad4f23a0-f7b7-4789-abd6-6f167011c063"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Invalid"
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        1952,
+        -304
+      ],
+      "id": "cbecc9b6-2fb8-41fd-bb30-180a5c708998",
+      "name": "Switch2",
+      "alwaysOutputData": false,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "eaa1cab5-f17b-48af-ac8d-1e9aeaca35e8",
+              "name": "onu_sn",
+              "value": "={{ $('HTTP Request').item.json.data[8].value }}",
+              "type": "string"
+            },
+            {
+              "id": "773a2f5f-ba4c-438e-afeb-6010c32cb2c4",
+              "name": "result_text",
+              "value": "={{ $('Return kesimpulan').item.json.message }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2288,
+        -448
+      ],
+      "id": "ccafb6ca-2d1a-4d2f-aa40-db7a9a81cc36",
+      "name": "Set variable output (valid)"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "eaa1cab5-f17b-48af-ac8d-1e9aeaca35e8",
+              "name": "onu_sn",
+              "value": "=invalid",
+              "type": "string"
+            },
+            {
+              "id": "773a2f5f-ba4c-438e-afeb-6010c32cb2c4",
+              "name": "result_text",
+              "value": "={{ $('HTTP Request').item.json.message }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2288,
+        -80
+      ],
+      "id": "591cef49-7b47-4456-9812-b108e9c7c463",
+      "name": "Set variable output (invalid)"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "eaa1cab5-f17b-48af-ac8d-1e9aeaca35e8",
+              "name": "onu_sn",
+              "value": "=error",
+              "type": "string"
+            },
+            {
+              "id": "773a2f5f-ba4c-438e-afeb-6010c32cb2c4",
+              "name": "result_text",
+              "value": "=ibooster error",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2288,
+        -256
+      ],
+      "id": "99ced4ce-a04f-45ea-8fce-0e8e810de20f",
+      "name": "Set variable output (error)"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        []
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Switch1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "If server return error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Parse Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If server return error": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Ukur",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Parse Command": {
+      "main": [
+        [
+          {
+            "node": "Route Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Command": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Return kesimpulan": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ukur": {
+      "main": [
+        [
+          {
+            "node": "Tunggu ya...",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a text message": {
+      "main": [
+        [
+          {
+            "node": "Stop Inline Keyboard Loading",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stop Inline Keyboard Loading": {
+      "main": [
+        [
+          {
+            "node": "Switch2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch1": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return kesimpulan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch2": {
+      "main": [
+        [
+          {
+            "node": "Set variable output (invalid)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set variable output (valid)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set variable output (valid)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "0e7f1d26-a32a-4d9a-8337-6f704e59c003",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "df83e2e9d1f0f38fbfca14582d23386ff20c4534778a7edceef02ef17dc8f869"
+  },
+  "id": "pQK0pPVbb7qF7doV",
+  "tags": []
+}

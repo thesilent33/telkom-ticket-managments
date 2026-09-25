@@ -1,0 +1,134 @@
+{
+  "name": "Webhook LENSA - Ticket Manager Web",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ukur-lensa",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "wh-001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "REPLACE_WEBHOOK_UUID"
+    },
+    {
+      "parameters": {
+        "url": "https://lensa.tacc.id/api/ukur_ibooster",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "inet", "value": "={{ $json.body.inet }}" },
+            { "name": "nik",  "value": "16974028" },
+            { "name": "nama", "value": "JONI SUBROTO" }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "authorization",
+              "value": "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL2xlbnNhLnRhY2MuaWQvYXBpL2xvZ2luIiwiaWF0IjoxNzI4NjIwODczLCJuYmYiOjE3Mjg2MjA4NzMsImp0aSI6IjFjQk9NOXIxbDZtbkVoV0kiLCJzdWIiOiIxIiwicHJ2IjoiMjNiZDVjODk0OWY2MDBhZGIzOWU3MDFjNDAwODcyZGI3YTU5NzZmNyJ9.QF0GB9-RcQ5YMfxeF6sjHPJQDDXM_Qa6NMnNCsm8VoQ"
+            }
+          ]
+        },
+        "options": {
+          "response": { "response": { "responseFormat": "json" } },
+          "timeout": 10000
+        }
+      },
+      "id": "http-001",
+      "name": "HTTP LENSA",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [480, 300],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Format hasil LENSA ke response JSON untuk web app\nconst d = $input.item.json?.data ?? [];\nconst msg = $input.item.json?.message ?? '';\nconst kes = $input.item.json?.kesimpulan ?? '';\n\nfunction raw(i) { return d?.[i]?.value ?? ''; }\nfunction stripUnit(v) { return String(v ?? '').replace(/dBm/gi, '').trim(); }\n\nconst onuStatusRaw = raw(9);\nconst onuRxRaw     = raw(19);\nconst oltRxRaw     = raw(22);\nconst onuSn        = raw(8);\nconst acsRaw       = raw(32);\nconst pcrf         = raw(34);\nconst gpon         = raw(0);\n\n// Tentukan emoji/status\nfunction rxEmoji(v) {\n  const n = parseFloat(stripUnit(v));\n  if (isNaN(n)) return 'error';\n  if (n < -60 || n > 0) return 'error';\n  if (n < -24) return 'warn';\n  return 'ok';\n}\n\n// Bangun result_text (HTML) untuk kompatibilitas dengan bot lama\nconst EO = '\\u2705', EW = '\\u26a0\\ufe0f', EB = '\\u274c';\nconst onuEmoji  = onuStatusRaw.toUpperCase().includes('ONLINE') ? EO : (onuStatusRaw.toUpperCase().includes('LOS') ? EB : EW);\nconst onuRxEmoji = rxEmoji(onuRxRaw) === 'ok' ? EO : (rxEmoji(onuRxRaw) === 'warn' ? EW : EB);\nconst oltRxEmoji = rxEmoji(oltRxRaw) === 'ok' ? EO : (rxEmoji(oltRxRaw) === 'warn' ? EW : EB);\n\nconst result_text = `<b>ONU status:</b> ${onuStatusRaw} ${onuEmoji}\\n<b>ONU rx:</b> ${stripUnit(onuRxRaw)} dBm ${onuRxEmoji}\\n<b>OLT rx:</b> ${stripUnit(oltRxRaw)} dBm ${oltRxEmoji}\\n<b>SN ONT:</b> <code>${onuSn}</code>\\n<b>ACS:</b> ${acsRaw}\\n<b>PCRF:</b> ${pcrf}\\n<b>GPON:</b> ${gpon}\\n\\n<b>${kes}</b>`;\n\nreturn [{ json: {\n  success:     true,\n  onu_sn:      onuSn,\n  onu_status:  onuStatusRaw,\n  onu_rx:      stripUnit(onuRxRaw),\n  olt_rx:      stripUnit(oltRxRaw),\n  onu_rx_status: rxEmoji(onuRxRaw),\n  olt_rx_status: rxEmoji(oltRxRaw),\n  acs_status:  acsRaw,\n  pcrf:        pcrf,\n  gpon:        gpon,\n  kesimpulan:  kes,\n  message:     msg,\n  result_text\n}}];\n"
+      },
+      "id": "code-format",
+      "name": "Format Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 220]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return [{ json: {\n  success:    false,\n  error:      'ibooster_error',\n  message:    $input.item.json?.message ?? 'Server LENSA error'\n}}];\n"
+      },
+      "id": "code-error",
+      "name": "Format Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 380]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              { "name": "Access-Control-Allow-Origin", "value": "*" },
+              { "name": "Access-Control-Allow-Methods", "value": "POST, OPTIONS" },
+              { "name": "Access-Control-Allow-Headers", "value": "Content-Type" },
+              { "name": "Content-Type", "value": "application/json" }
+            ]
+          }
+        }
+      },
+      "id": "respond-ok",
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [960, 220]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              { "name": "Access-Control-Allow-Origin", "value": "*" },
+              { "name": "Content-Type", "value": "application/json" }
+            ]
+          }
+        }
+      },
+      "id": "respond-err",
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [960, 380]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "HTTP LENSA", "type": "main", "index": 0 }]]
+    },
+    "HTTP LENSA": {
+      "main": [[{ "node": "Format Output", "type": "main", "index": 0 }]],
+      "error": [[{ "node": "Format Error", "type": "main", "index": 0 }]]
+    },
+    "Format Output": {
+      "main": [[{ "node": "Respond OK", "type": "main", "index": 0 }]]
+    },
+    "Format Error": {
+      "main": [[{ "node": "Respond Error", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "tags": []
+}
