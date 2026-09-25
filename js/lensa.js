@@ -23,7 +23,7 @@ async function ukurRedaman(inet) {
     return {
       success:    false,
       error:      `HTTP ${response.status}`,
-      message:    'Gagal menghubungi server n8n',
+      message:    `Gagal menghubungi server n8n (HTTP ${response.status})`,
       onu_sn:     null,
       onu_status: null,
       onu_rx:     null,
@@ -31,8 +31,33 @@ async function ukurRedaman(inet) {
     };
   }
 
-  const data = await response.json();
-  return data;
+  const rawText = await response.text();
+  if (!rawText || !rawText.trim()) {
+    return {
+      success:    false,
+      error:      'empty_response',
+      message:    'n8n mengembalikan respon kosong. Periksa workflow di n8n.',
+      onu_sn:     null,
+      onu_status: null,
+      onu_rx:     null,
+      olt_rx:     null,
+    };
+  }
+
+  try {
+    const data = JSON.parse(rawText);
+    return data;
+  } catch (e) {
+    return {
+      success:    false,
+      error:      'invalid_json',
+      message:    `Respon dari n8n bukan JSON yang valid: ${rawText.slice(0, 80)}`,
+      onu_sn:     null,
+      onu_status: null,
+      onu_rx:     null,
+      olt_rx:     null,
+    };
+  }
 }
 
 /**

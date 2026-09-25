@@ -218,7 +218,7 @@ async function handleUkur(ticket) {
     showToast('📡 Hasil ukur berhasil diperbarui!', 'success');
   } catch (err) {
     console.error(err);
-    showToast('❌ Gagal ukur redaman. Cek URL n8n di config.js.', 'error');
+    showToast(`❌ Gagal ukur redaman: ${err.message || 'Cek URL n8n di config.js.'}`, 'error');
     setUkurLoading(ticket.id, false);
   }
 }
