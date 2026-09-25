@@ -160,10 +160,11 @@ function parseTickets(text) {
  */
 function generateRekap(ticket) {
   const kategori = ticket.tier === 'INDIBIZ' ? 'B2B' : 'B2C';
+  const statusStr = ticket.status === 'kendala' ? 'KENDALA' : 'CLOSED';
   const lines = [
     `/Tiket ATAU SC : ${ticket.inc || '-'}`,
     `USER : ${ticket.inet || '-'}`,
-    `STATUS : CLOSED`,
+    `STATUS : ${statusStr}`,
     `PENYEBAB : ${ticket.penyebab || ticket.kendala_text || '-'}`,
     `PERBAIKAN : ${ticket.perbaikan || '-'}`,
     `Nik1 : 16974028`,

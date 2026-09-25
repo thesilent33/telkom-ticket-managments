@@ -22,6 +22,27 @@ function formatDuration(ms) {
   return `${m}m`;
 }
 
+function formatLastUpdated(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '';
+  const now = Date.now();
+  const diffMin = Math.floor((now - d.getTime()) / 60000);
+  let rel = '';
+  if (diffMin < 1) rel = 'baru saja';
+  else if (diffMin < 60) rel = `${diffMin}m lalu`;
+  else {
+    const h = Math.floor(diffMin / 60);
+    const m = diffMin % 60;
+    rel = `${h}j ${m}m lalu`;
+  }
+  const day = String(d.getDate()).padStart(2, '0');
+  const mon = String(d.getMonth() + 1).padStart(2, '0');
+  const hr  = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  return `${day}/${mon} ${hr}:${min} (${rel})`;
+}
+
 /**
  * Returns: { label, className }
  * className: 'sla-green' | 'sla-yellow' | 'sla-red' | 'sla-overdue'
@@ -48,6 +69,26 @@ function getSlaInfo(ticket) {
   return { label, className };
 }
 
+// ─── Teknisi storage helper ───────────────────────────────────────────────────
+
+function getSavedTechnicians() {
+  try {
+    const list = JSON.parse(localStorage.getItem('saved_technicians') || '[]');
+    if (Array.isArray(list) && list.length > 0) return list;
+  } catch (e) {}
+  return ['JONI SUBROTO'];
+}
+
+function saveTechnicianName(name) {
+  if (!name || !name.trim()) return;
+  const n = name.trim();
+  const list = getSavedTechnicians();
+  if (!list.includes(n)) {
+    list.unshift(n);
+    localStorage.setItem('saved_technicians', JSON.stringify(list.slice(0, 30)));
+  }
+}
+
 // ─── Tier badge ───────────────────────────────────────────────────────────────
 
 function renderTierBadge(tier) {
@@ -59,15 +100,45 @@ function renderTierBadge(tier) {
 
 function renderRedaman(ticket) {
   const summary = formatRedamanSummary(ticket);
-  if (!summary) {
+  if (!summary && !ticket.redaman_at) {
     return `<span class="redaman-empty">📡 Belum diukur</span>`;
   }
+
+  // Tipe ONT jika ada di result_text atau onu_tipe
+  const tipeMatch = ticket.onu_tipe ||
+    ticket.result_text?.match(/SN ONT:.*?<\/code>\s*(?:\(([^)]+(?:\([^)]+\))?[^)]*)\))/i)?.[1] ||
+    ticket.result_text?.match(/SN ONT:[^(]*\(([^)]+(?:\([^)]+\))?[^)]*)\)/i)?.[1];
+  const tipeOnt = tipeMatch ? tipeMatch.trim() : '';
+
   const snHtml = ticket.onu_sn
-    ? `<div class="redaman-sn">🔌 SN: <code>${ticket.onu_sn}</code></div>`
+    ? `<div class="redaman-sn">🔌 SN: <code>${ticket.onu_sn}</code>${tipeOnt ? ` <span class="ont-tipe">(${tipeOnt})</span>` : ''}</div>`
     : '';
+
+  // ACS Status & PCRF (Paket)
+  const acsVal = ticket.acs_status ||
+    ticket.result_text?.match(/Conn status \(ACS\):\s*([^\n<⚠️✅❌]+)/i)?.[1]?.trim() ||
+    ticket.result_text?.match(/ACS:\s*([^\n<⚠️✅❌]+)/i)?.[1]?.trim();
+  const acsEmoji = (acsVal ?? '').toLowerCase() === 'online' ? '✅' : '⚠️';
+
+  const pcrfVal = ticket.pcrf ||
+    ticket.result_text?.match(/PCRF \(Paket\):\s*([^\n<]+)/i)?.[1]?.trim() ||
+    ticket.result_text?.match(/PCRF:\s*([^\n<]+)/i)?.[1]?.trim();
+
+  let metaBadges = [];
+  if (acsVal) metaBadges.push(`<span class="redaman-meta-badge">🌐 ACS: <b>${acsVal}</b> ${acsEmoji}</span>`);
+  if (pcrfVal) metaBadges.push(`<span class="redaman-meta-badge">📦 Paket: <b>${pcrfVal}</b></span>`);
+  const metaHtml = metaBadges.length > 0 ? `<div class="redaman-meta">${metaBadges.join(' ')}</div>` : '';
+
+  // Last update time
+  const timeHtml = ticket.redaman_at
+    ? `<div class="redaman-time">🕐 Diukur: ${formatLastUpdated(ticket.redaman_at)}</div>`
+    : '';
+
   return `
-    <div class="redaman-summary">${summary}</div>
-    ${snHtml}`;
+    ${summary ? `<div class="redaman-summary">${summary}</div>` : ''}
+    ${snHtml}
+    ${metaHtml}
+    ${timeHtml}`;
 }
 
 // ─── Progress text ────────────────────────────────────────────────────────────
@@ -96,7 +167,7 @@ function renderActions(ticket) {
   const isDone    = ticket.status === 'done';
   const isKendala = ticket.status === 'kendala';
 
-  const ukurLabel    = ticket.onu_status ? '📶 Ukur Ulang' : '📶 Ukur';
+  const ukurLabel    = (ticket.onu_status || ticket.redaman_at) ? '📶 Ukur Ulang' : '📶 Ukur';
   const doneLabel    = isDone    ? '↩️ Unmark'       : '✅ Selesai';
   const kendalaLabel = isKendala ? '↩️ Batal Kendala' : '⚠️ Kendala';
 
@@ -106,7 +177,6 @@ function renderActions(ticket) {
       <button class="btn-action btn-done"    data-action="done"    data-id="${id}">${doneLabel}</button>
       <button class="btn-action btn-kendala" data-action="kendala" data-id="${id}">${kendalaLabel}</button>
       <button class="btn-action btn-rekap"   data-action="rekap"   data-id="${id}">📋 Rekap</button>
-      <button class="btn-action btn-delete"  data-action="delete"  data-id="${id}" title="Hapus tiket">🗑️</button>
     </div>`;
 }
 
@@ -145,6 +215,7 @@ function renderTicketCard(ticket) {
     </div>
     <div class="card-header-right">
       ${slaHtml}
+      <button class="btn-card-delete" data-action="delete" data-id="${ticket.id}" title="Hapus tiket" aria-label="Hapus tiket">✕</button>
     </div>
   </div>
 
@@ -169,7 +240,7 @@ function renderTicketCard(ticket) {
 </article>`;
 }
 
-// ─── Render all tickets ───────────────────────────────────────────────────────
+// ─── Render all tickets with sorting ──────────────────────────────────────────
 
 function renderAllTickets(tickets, filter = {}) {
   const container = document.getElementById('tickets-container');
@@ -186,6 +257,32 @@ function renderAllTickets(tickets, filter = {}) {
     list = list.filter(t => t.tier === filter.tier);
   }
 
+  // Sort logic
+  const sortMode = filter.sort || 'ttr_desc';
+  list.sort((a, b) => {
+    if (sortMode === 'ttr_desc') {
+      // TTR terlama = reported_at paling lampau duluan (paling mendekati / lewat SLA)
+      const tA = a.reported_at ? new Date(a.reported_at).getTime() : (a.created_at ? new Date(a.created_at).getTime() : 0);
+      const tB = b.reported_at ? new Date(b.reported_at).getTime() : (b.created_at ? new Date(b.created_at).getTime() : 0);
+      return tA - tB;
+    } else if (sortMode === 'ttr_asc') {
+      // TTR terbaru = reported_at paling baru duluan
+      const tA = a.reported_at ? new Date(a.reported_at).getTime() : (a.created_at ? new Date(a.created_at).getTime() : 0);
+      const tB = b.reported_at ? new Date(b.reported_at).getTime() : (b.created_at ? new Date(b.created_at).getTime() : 0);
+      return tB - tA;
+    } else if (sortMode === 'tier') {
+      const tierRank = { HVC_DIAMOND: 1, HVC_PLATINUM: 2, HVC_GOLD: 3, INDIBIZ: 4, REGULER: 5 };
+      const rA = tierRank[a.tier] || 99;
+      const rB = tierRank[b.tier] || 99;
+      return rA - rB;
+    } else if (sortMode === 'created_desc') {
+      const tA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const tB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return tB - tA;
+    }
+    return 0;
+  });
+
   if (list.length === 0) {
     container.innerHTML = `
       <div class="empty-state">
@@ -199,12 +296,11 @@ function renderAllTickets(tickets, filter = {}) {
   container.innerHTML = list.map(renderTicketCard).join('');
 }
 
-// ─── In-place card update (tanpa re-render semua) ────────────────────────────
+// ─── In-place card update ─────────────────────────────────────────────────────
 
 function updateCardInPlace(ticket) {
   const el = document.querySelector(`[data-id="${ticket.id}"]`);
   if (!el) return;
-  // Ganti kartu dengan versi baru
   el.outerHTML = renderTicketCard(ticket);
 }
 
@@ -219,7 +315,6 @@ function removeCard(id) {
 function insertCard(ticket) {
   const container = document.getElementById('tickets-container');
   if (!container) return;
-  // Hapus empty state jika ada
   const empty = container.querySelector('.empty-state');
   if (empty) container.innerHTML = '';
 
@@ -227,7 +322,7 @@ function insertCard(ticket) {
   temp.innerHTML = renderTicketCard(ticket);
   const card = temp.firstElementChild;
   card.classList.add('card-new');
-  container.appendChild(card);
+  container.prepend(card);
   setTimeout(() => card.classList.remove('card-new'), 500);
 }
 
@@ -243,7 +338,6 @@ function setUkurLoading(id, loading) {
   } else {
     btn.disabled = false;
     btn.classList.remove('loading');
-    // teks akan di-update saat kartu di-refresh
   }
 }
 
@@ -278,7 +372,13 @@ function showModal(html, { onConfirm, confirmLabel = 'OK', cancelLabel = 'Batal'
   body.innerHTML = html;
   btnOk.textContent = confirmLabel;
   btnOk.className   = `btn-modal-confirm${dangerous ? ' btn-danger' : ''}`;
-  btnX.textContent  = cancelLabel;
+
+  if (!cancelLabel) {
+    btnX.style.display = 'none';
+  } else {
+    btnX.style.display = 'block';
+    btnX.textContent  = cancelLabel;
+  }
 
   overlay.classList.add('modal-open');
 
@@ -338,6 +438,7 @@ function modalAddTicket() {
 
 function modalDone(ticket) {
   const label = ticket.inc || `tiket #`;
+  const savedTechs = getSavedTechnicians();
   return `
     <h3 class="modal-title">✅ Tandai Selesai</h3>
     <p class="modal-subtitle">Tiket: <code>${label}</code></p>
@@ -352,9 +453,14 @@ function modalDone(ticket) {
         placeholder="cth: ONT mati total" value="${ticket.penyebab ?? ''}">
     </div>
     <div class="modal-section">
-      <label class="modal-label">Teknisi</label>
+      <label class="modal-label">Teknisi (Pilih atau Ketik Baru)</label>
       <input id="input-teknisi-done" class="modal-input" type="text"
-        placeholder="Nama teknisi" value="${ticket.teknisi ?? ''}">
+        list="teknisi-list-done"
+        placeholder="Pilih atau ketik nama teknisi"
+        value="${ticket.teknisi ?? ''}">
+      <datalist id="teknisi-list-done">
+        ${savedTechs.map(t => `<option value="${t}">`).join('')}
+      </datalist>
     </div>`;
 }
 
@@ -362,6 +468,7 @@ function modalDone(ticket) {
 
 function modalKendala(ticket) {
   const label = ticket.inc || `tiket`;
+  const savedTechs = getSavedTechnicians();
   return `
     <h3 class="modal-title">⚠️ Tandai Kendala</h3>
     <p class="modal-subtitle">Tiket: <code>${label}</code></p>
@@ -372,9 +479,14 @@ function modalKendala(ticket) {
         value="${ticket.kendala_text ?? ''}">
     </div>
     <div class="modal-section">
-      <label class="modal-label">Teknisi</label>
+      <label class="modal-label">Teknisi (Pilih atau Ketik Baru)</label>
       <input id="input-teknisi-kendala" class="modal-input" type="text"
-        placeholder="Nama teknisi" value="${ticket.teknisi ?? ''}">
+        list="teknisi-list-kendala"
+        placeholder="Pilih atau ketik nama teknisi"
+        value="${ticket.teknisi ?? ''}">
+      <datalist id="teknisi-list-kendala">
+        ${savedTechs.map(t => `<option value="${t}">`).join('')}
+      </datalist>
     </div>`;
 }
 
@@ -384,11 +496,11 @@ function modalRekap(ticket) {
   const rekap = generateRekap(ticket);
   return `
     <h3 class="modal-title">📋 Rekap Tiket</h3>
-    <p class="modal-subtitle">${ticket.inc || '—'}</p>
+    <p class="modal-subtitle">${ticket.inc || '—'} <span class="text-xs text-slate-400">(Bisa diedit langsung sebelum disalin)</span></p>
     <div class="rekap-box">
-      <pre id="rekap-text">${rekap}</pre>
+      <textarea id="rekap-text" class="rekap-textarea" rows="11" spellcheck="false">${rekap}</textarea>
     </div>
-    <button class="btn-copy" onclick="navigator.clipboard.writeText(document.getElementById('rekap-text').textContent).then(() => this.textContent='✅ Tersalin!').catch(() => this.textContent='❌ Gagal')">
+    <button class="btn-copy" onclick="navigator.clipboard.writeText(document.getElementById('rekap-text').value).then(() => { this.textContent='✅ Berhasil Disalin!'; setTimeout(()=>this.textContent='📋 Salin Semua', 2000); }).catch(() => this.textContent='❌ Gagal')">
       📋 Salin Semua
     </button>`;
 }
@@ -439,4 +551,6 @@ export {
   updateAllTimers,
   updateStats,
   getSlaInfo,
+  getSavedTechnicians,
+  saveTechnicianName,
 };

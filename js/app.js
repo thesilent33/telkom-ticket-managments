@@ -9,12 +9,12 @@ import {
   renderAllTickets, updateCardInPlace, removeCard, insertCard,
   setUkurLoading, showToast, showModal, showInputModal,
   modalAddTicket, modalDone, modalKendala, modalRekap,
-  updateAllTimers, updateStats,
+  updateAllTimers, updateStats, saveTechnicianName,
 } from './ui.js';
 
 // ─── State ────────────────────────────────────────────────────────────────────
-let tickets   = [];   // array of ticket objects (local cache)
-let activeFilter = { status: 'all', tier: 'all' };
+let tickets      = [];   // array of ticket objects (local cache)
+let activeFilter = { status: 'all', tier: 'all', sort: 'ttr_desc' };
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 async function init() {
@@ -40,7 +40,7 @@ async function init() {
   document.addEventListener('click', handleClick);
   document.addEventListener('input', handleInput);
 
-  // Filter buttons
+  // Filter buttons (Status)
   document.querySelectorAll('[data-filter-status]').forEach(btn => {
     btn.addEventListener('click', () => {
       activeFilter.status = btn.dataset.filterStatus;
@@ -50,6 +50,7 @@ async function init() {
     });
   });
 
+  // Filter buttons (Tier)
   document.querySelectorAll('[data-filter-tier]').forEach(btn => {
     btn.addEventListener('click', () => {
       activeFilter.tier = btn.dataset.filterTier;
@@ -58,6 +59,16 @@ async function init() {
       renderAllTickets(tickets, activeFilter);
     });
   });
+
+  // Sort dropdown
+  const sortSelect = document.getElementById('select-sort');
+  if (sortSelect) {
+    sortSelect.value = activeFilter.sort;
+    sortSelect.addEventListener('change', (e) => {
+      activeFilter.sort = e.target.value;
+      renderAllTickets(tickets, activeFilter);
+    });
+  }
 }
 
 // ─── Loading indicator ────────────────────────────────────────────────────────
@@ -69,10 +80,9 @@ function showLoading(on) {
 // ─── Realtime handler ─────────────────────────────────────────────────────────
 function handleRealtimeChange({ eventType, old: oldRow, new: newRow }) {
   if (eventType === 'INSERT') {
-    // Hindari duplikat jika kita yang insert
     if (!tickets.find(t => t.id === newRow.id)) {
       tickets.push(newRow);
-      insertCard(newRow);
+      renderAllTickets(tickets, activeFilter);
       updateStats(tickets);
     }
   } else if (eventType === 'UPDATE') {
@@ -137,7 +147,6 @@ async function handleAddTicket() {
 
   try {
     const inserted = await addTickets(parsed);
-    // Realtime akan handle insert, tapi tambahkan ke lokal juga untuk responsivitas
     if (inserted) {
       inserted.forEach(t => {
         if (!tickets.find(x => x.id === t.id)) {
@@ -198,16 +207,16 @@ async function handleUkur(ticket) {
 
     // Simpan ke Supabase
     const changes = {
-      onu_sn:        result.onu_sn     ?? null,
-      onu_status:    result.onu_status ?? null,
-      onu_rx:        result.onu_rx     ?? null,
-      olt_rx:        result.olt_rx     ?? null,
+      onu_sn:        result.onu_sn        ?? null,
+      onu_status:    result.onu_status    ?? null,
+      onu_rx:        result.onu_rx        ?? null,
+      olt_rx:        result.olt_rx        ?? null,
       onu_rx_status: result.onu_rx_status ?? null,
       olt_rx_status: result.olt_rx_status ?? null,
-      acs_status:    result.acs_status ?? null,
-      pcrf:          result.pcrf       ?? null,
-      gpon:          result.gpon       ?? null,
-      result_text:   result.result_text ?? null,
+      acs_status:    result.acs_status    ?? null,
+      pcrf:          result.pcrf          ?? null,
+      gpon:          result.gpon          ?? null,
+      result_text:   result.result_text   ?? null,
       redaman_at:    new Date().toISOString(),
     };
 
@@ -268,12 +277,17 @@ async function handleDone(ticket) {
     return;
   }
 
+  // Simpan nama teknisi ke daftar dropdown
+  if (result.teknisi) {
+    saveTechnicianName(result.teknisi);
+  }
+
   try {
     const updated = await updateTicket(ticket.id, {
-      status:    'done',
-      perbaikan: result.perbaikan,
-      penyebab:  result.penyebab || null,
-      teknisi:   result.teknisi  || ticket.teknisi || null,
+      status:       'done',
+      perbaikan:    result.perbaikan,
+      penyebab:     result.penyebab || null,
+      teknisi:      result.teknisi  || ticket.teknisi || null,
       kendala_text: null,
     });
     const idx = tickets.findIndex(t => t.id === ticket.id);
@@ -322,6 +336,11 @@ async function handleKendala(ticket) {
 
   if (!result) return;
 
+  // Simpan nama teknisi ke daftar dropdown
+  if (result.teknisi) {
+    saveTechnicianName(result.teknisi);
+  }
+
   try {
     const updated = await updateTicket(ticket.id, {
       status:       'kendala',
@@ -343,7 +362,7 @@ function handleRekap(ticket) {
   if (!ticket) return;
   showModal(modalRekap(ticket), {
     confirmLabel: '✖ Tutup',
-    cancelLabel: '',
+    cancelLabel: '', // otomatis disembunyikan di showModal
   });
 }
 
