@@ -54,7 +54,7 @@ const CONFIG = {
 git init
 git add .
 git commit -m "Initial commit: Telkom Ticket Manager Web App"
-git remote add origin https://github.com/USERNAME/telkom-ticket-managments.git
+git remote add origin https://github.com/thesilent33/telkom-ticket-managments.git
 git push -u origin main
 ```
 
