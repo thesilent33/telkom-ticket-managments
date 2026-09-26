@@ -233,18 +233,17 @@ function renderRedaman(ticket) {
   if (pcrfVal) metaBadges.push(`<span class="redaman-meta-badge">📦 Paket: <b>${pcrfVal}</b></span>`);
   const metaHtml = metaBadges.length > 0 ? `<div class="redaman-meta">${metaBadges.join(' ')}</div>` : '';
 
-  // Last update time
+  // Last update time (Waktu Diukur) - ditaruh di compact row agar TIDAK dihide saat collapse
   const timeHtml = ticket.redaman_at
-    ? `<div class="redaman-time" data-measured="${ticket.redaman_at}">🕐 Diukur: ${formatLastUpdated(ticket.redaman_at)}</div>`
+    ? `<span class="redaman-time" data-measured="${ticket.redaman_at}">🕐 Diukur: ${formatLastUpdated(ticket.redaman_at)}</span>`
     : '';
 
-  const detailsHtml = (summary || snHtml || metaHtml || timeHtml)
+  const detailsHtml = (summary || snHtml || metaHtml)
     ? `
       <div class="redaman-details">
         ${summary ? `<div class="redaman-summary">${summary}</div>` : ''}
         ${snHtml}
         ${metaHtml}
-        ${timeHtml}
       </div>`
     : `
       <div class="redaman-details">
@@ -253,7 +252,10 @@ function renderRedaman(ticket) {
 
   return `
     <div class="redaman-compact-row">
-      <span class="redaman-compact-badge ${compactStatus.badgeClass}">${compactStatus.text}</span>
+      <div class="redaman-compact-left">
+        <span class="redaman-compact-badge ${compactStatus.badgeClass}">${compactStatus.text}</span>
+        ${timeHtml}
+      </div>
       <button class="btn-card-expand" data-action="toggle-card-collapse" data-id="${ticket.id}" title="Buka / tutup rincian" aria-label="Toggle rincian kartu">▼</button>
     </div>
     ${detailsHtml}`;

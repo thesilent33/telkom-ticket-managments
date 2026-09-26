@@ -216,10 +216,6 @@ function setBatchMode(active) {
 
   renderCurrentView();
   updateBatchActionBar();
-
-  if (isBatchMode) {
-    showToast('☑️ Mode pilih aktif: centang tiket yang ingin diukur/dihapus', 'info');
-  }
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
@@ -938,7 +934,7 @@ async function handleUkurSemua() {
       isMeasuringAll = false;
       if (btn) {
         btn.classList.remove('measuring-active');
-        btn.innerHTML = `<span>📡</span><span>Ukur Semua (<span id="ukur-all-count">${baseTargets.length}</span>)</span>`;
+        btn.innerHTML = `<span>📡</span><span class="btn-label">Ukur <span class="hide-mobile">Semua </span>(<span id="ukur-all-count">${baseTargets.length}</span>)</span>`;
       }
       updateUkurAllButton();
 

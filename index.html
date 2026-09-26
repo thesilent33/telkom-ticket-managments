@@ -33,9 +33,10 @@
 
   <!-- ── Header ───────────────────────────────────────────────────── -->
   <header class="app-header">
-    <div>
+    <div class="header-brand">
       <div class="app-title">
-        🎟️ Ticket Manager
+        <span>🎟️</span>
+        <span class="app-title-text">Ticket Manager</span>
         <span class="realtime-dot" title="Realtime aktif"></span>
       </div>
       <div class="app-subtitle" id="ticket-summary">Memuat tiket...</div>
@@ -43,15 +44,15 @@
     <div class="header-actions">
       <button class="btn-header-batch" id="btn-batch-mode" title="Mode pilih banyak tiket untuk ukur / hapus">
         <span>☑️</span>
-        <span>Pilih</span>
+        <span class="btn-label">Pilih</span>
       </button>
       <button class="btn-ukur-all-header" id="btn-ukur-all" title="Ukur semua tiket pada filter aktif">
         <span>📡</span>
-        <span>Ukur Semua (<span id="ukur-all-count">0</span>)</span>
+        <span class="btn-label">Ukur <span class="hide-mobile">Semua </span>(<span id="ukur-all-count">0</span>)</span>
       </button>
-      <button class="btn-add-header" data-action="add">
+      <button class="btn-add-header" data-action="add" title="Tambah tiket baru">
         <span>➕</span>
-        <span>Tambah</span>
+        <span class="btn-label">Tambah</span>
       </button>
     </div>
   </header>
