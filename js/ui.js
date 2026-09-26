@@ -42,12 +42,17 @@ function formatLastUpdated(dateStr) {
   const now = Date.now();
   const diffMin = Math.floor((now - d.getTime()) / 60000);
   let rel = '';
-  if (diffMin < 1) rel = 'baru saja';
-  else if (diffMin < 60) rel = `${diffMin}m lalu`;
-  else {
+  if (diffMin < 1) {
+    rel = 'baru saja';
+  } else if (diffMin < 60) {
+    rel = `${diffMin}m lalu`;
+  } else if (diffMin < 1440) {
     const h = Math.floor(diffMin / 60);
     const m = diffMin % 60;
     rel = `${h}j ${m}m lalu`;
+  } else {
+    const days = Math.floor(diffMin / 1440);
+    rel = `${days}h lalu`;
   }
   const day = String(d.getDate()).padStart(2, '0');
   const mon = String(d.getMonth() + 1).padStart(2, '0');
@@ -156,7 +161,7 @@ function renderRedaman(ticket) {
 
   // Last update time
   const timeHtml = ticket.redaman_at
-    ? `<div class="redaman-time">🕐 Diukur: ${formatLastUpdated(ticket.redaman_at)}</div>`
+    ? `<div class="redaman-time" data-measured="${ticket.redaman_at}">🕐 Diukur: ${formatLastUpdated(ticket.redaman_at)}</div>`
     : '';
 
   return `
@@ -546,6 +551,7 @@ function modalRekap(ticket) {
 // ─── Update SLA timers (dipanggil setiap menit) ───────────────────────────────
 
 function updateAllTimers(allTickets = []) {
+  // Update TTR SLA timer badge
   document.querySelectorAll('.sla-timer').forEach(el => {
     const id = el.dataset.id;
     const ticket = allTickets.find(t => t.id === id);
@@ -556,6 +562,13 @@ function updateAllTimers(allTickets = []) {
 
     el.textContent = `⏱️ ${sla.label}`;
     el.className   = `sla-timer ${sla.className}`;
+  });
+
+  // Update live relative time for redaman measurement ("baru saja", "1m lalu", dst.)
+  document.querySelectorAll('.redaman-time[data-measured]').forEach(el => {
+    const measuredAt = el.dataset.measured;
+    if (!measuredAt) return;
+    el.textContent = `🕐 Diukur: ${formatLastUpdated(measuredAt)}`;
   });
 }
 

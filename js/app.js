@@ -60,8 +60,8 @@ async function init() {
   // Realtime subscription
   subscribeToTickets(handleRealtimeChange);
 
-  // Timer: update SLA setiap 30 detik
-  setInterval(() => updateAllTimers(tickets), 30000);
+  // Timer: update SLA & waktu ukur setiap 15 detik
+  setInterval(() => updateAllTimers(tickets), 15000);
 
   // Event delegation
   document.addEventListener('click', handleClick);

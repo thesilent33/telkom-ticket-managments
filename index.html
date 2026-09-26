@@ -28,73 +28,78 @@
 </head>
 <body>
 
-<!-- ── Loading Bar ──────────────────────────────────────────────── -->
-<div id="loading-bar"></div>
+<!-- ── Top Navigation (Sticky Header & Filter Bar) ──────────────── -->
+<div class="sticky-nav">
 
-<!-- ── Header ───────────────────────────────────────────────────── -->
-<header class="app-header">
-  <div>
-    <div class="app-title">
-      🎟️ Ticket Manager
-      <span class="realtime-dot" title="Realtime aktif"></span>
+  <!-- ── Header ───────────────────────────────────────────────────── -->
+  <header class="app-header">
+    <div>
+      <div class="app-title">
+        🎟️ Ticket Manager
+        <span class="realtime-dot" title="Realtime aktif"></span>
+      </div>
+      <div class="app-subtitle" id="ticket-summary">Memuat tiket...</div>
     </div>
-    <div class="app-subtitle" id="ticket-summary">Memuat tiket...</div>
-  </div>
-  <div class="header-actions">
-    <button class="btn-ukur-all-header" id="btn-ukur-all" title="Ukur semua tiket pada filter aktif">
-      <span>📡</span>
-      <span>Ukur Semua (<span id="ukur-all-count">0</span>)</span>
-    </button>
-    <button class="btn-add-header" data-action="add">
-      <span>➕</span>
-      <span>Tambah</span>
-    </button>
-  </div>
-</header>
+    <div class="header-actions">
+      <button class="btn-ukur-all-header" id="btn-ukur-all" title="Ukur semua tiket pada filter aktif">
+        <span>📡</span>
+        <span>Ukur Semua (<span id="ukur-all-count">0</span>)</span>
+      </button>
+      <button class="btn-add-header" data-action="add">
+        <span>➕</span>
+        <span>Tambah</span>
+      </button>
+    </div>
+  </header>
 
-<!-- ── Filter Bar ────────────────────────────────────────────────── -->
-<div class="filter-bar" role="tablist" aria-label="Filter tiket">
+  <!-- ── Loading Bar ──────────────────────────────────────────────── -->
+  <div id="loading-bar"></div>
 
-  <!-- Filter Status -->
-  <div class="filter-group">
-    <button class="btn-filter active" data-filter-status="all">
-      Semua <span class="filter-count" id="count-all">0</span>
-    </button>
-    <button class="btn-filter" data-filter-status="open">
-      ⏳ Open <span class="filter-count" id="count-open">0</span>
-    </button>
-    <button class="btn-filter" data-filter-status="done">
-      ✅ Selesai <span class="filter-count" id="count-done">0</span>
-    </button>
-    <button class="btn-filter" data-filter-status="kendala">
-      ⚠️ Kendala <span class="filter-count" id="count-kendala">0</span>
-    </button>
-  </div>
+  <!-- ── Filter Bar ────────────────────────────────────────────────── -->
+  <div class="filter-bar" role="tablist" aria-label="Filter tiket">
 
-  <div class="filter-divider"></div>
+    <!-- Filter Status -->
+    <div class="filter-group">
+      <button class="btn-filter active" data-filter-status="all">
+        Semua <span class="filter-count" id="count-all">0</span>
+      </button>
+      <button class="btn-filter" data-filter-status="open">
+        ⏳ Open <span class="filter-count" id="count-open">0</span>
+      </button>
+      <button class="btn-filter" data-filter-status="done">
+        ✅ Selesai <span class="filter-count" id="count-done">0</span>
+      </button>
+      <button class="btn-filter" data-filter-status="kendala">
+        ⚠️ Kendala <span class="filter-count" id="count-kendala">0</span>
+      </button>
+    </div>
 
-  <!-- Filter Tier -->
-  <div class="filter-group">
-    <button class="btn-filter" data-filter-tier="all">Semua Tier</button>
-    <button class="btn-filter" data-filter-tier="HVC_DIAMOND">💎 Diamond</button>
-    <button class="btn-filter" data-filter-tier="HVC_PLATINUM">⚪ Platinum</button>
-    <button class="btn-filter" data-filter-tier="HVC_GOLD">🟡 Gold</button>
-    <button class="btn-filter" data-filter-tier="INDIBIZ">🔵 Indibiz</button>
-    <button class="btn-filter" data-filter-tier="REGULER">⚫ Reguler</button>
-  </div>
+    <div class="filter-divider"></div>
 
-  <div class="filter-divider"></div>
+    <!-- Filter Tier -->
+    <div class="filter-group">
+      <button class="btn-filter" data-filter-tier="all">Semua Tier</button>
+      <button class="btn-filter" data-filter-tier="HVC_DIAMOND">💎 Diamond</button>
+      <button class="btn-filter" data-filter-tier="HVC_PLATINUM">⚪ Platinum</button>
+      <button class="btn-filter" data-filter-tier="HVC_GOLD">🟡 Gold</button>
+      <button class="btn-filter" data-filter-tier="INDIBIZ">🔵 Indibiz</button>
+      <button class="btn-filter" data-filter-tier="REGULER">⚫ Reguler</button>
+    </div>
 
-  <!-- Sort Dropdown -->
-  <div class="filter-group" style="align-items: center;">
-    <label for="select-sort" class="sort-label">Urutkan:</label>
-    <select id="select-sort" class="select-sort" aria-label="Urutkan tiket">
-      <option value="ttr_desc">⏱️ TTR Terlama (Jam Berjalan)</option>
-      <option value="ttr_asc">⏳ TTR Terbaru</option>
-      <option value="tier_desc">💎 Tier Tertinggi (Diamond ➔ Reguler)</option>
-      <option value="tier_asc">⚫ Tier Terendah (Reguler ➔ Diamond)</option>
-      <option value="created_desc">🕒 Baru Ditambahkan</option>
-    </select>
+    <div class="filter-divider"></div>
+
+    <!-- Sort Dropdown -->
+    <div class="filter-group" style="align-items: center;">
+      <label for="select-sort" class="sort-label">Urutkan:</label>
+      <select id="select-sort" class="select-sort" aria-label="Urutkan tiket">
+        <option value="ttr_desc">⏱️ TTR Terlama (Jam Berjalan)</option>
+        <option value="ttr_asc">⏳ TTR Terbaru</option>
+        <option value="tier_desc">💎 Tier Tertinggi (Diamond ➔ Reguler)</option>
+        <option value="tier_asc">⚫ Tier Terendah (Reguler ➔ Diamond)</option>
+        <option value="created_desc">🕒 Baru Ditambahkan</option>
+      </select>
+    </div>
+
   </div>
 
 </div>
