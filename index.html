@@ -55,6 +55,21 @@
   <!-- ── Loading Bar ──────────────────────────────────────────────── -->
   <div id="loading-bar"></div>
 
+  <!-- ── Group Bar (Folder / Custom Lists) ─────────────────────────── -->
+  <div class="group-bar" id="group-bar" role="tablist" aria-label="Grup tiket">
+    <div class="group-tabs-scroll" id="group-tabs-scroll">
+      <button class="btn-group-tab active" data-group="all">
+        <span>🌐</span> Semua Tiket <span class="group-count" id="count-group-all">0</span>
+      </button>
+      <div id="custom-group-tabs" class="custom-group-tabs">
+        <!-- Rendered dynamically by JS -->
+      </div>
+      <button class="btn-group-add" id="btn-add-group" title="Buat grup baru">
+        <span>➕</span> Buat Grup
+      </button>
+    </div>
+  </div>
+
   <!-- ── Filter Bar ────────────────────────────────────────────────── -->
   <div class="filter-bar" role="tablist" aria-label="Filter tiket">
 
@@ -78,12 +93,24 @@
 
     <!-- Filter Tier -->
     <div class="filter-group">
-      <button class="btn-filter" data-filter-tier="all">Semua Tier</button>
-      <button class="btn-filter" data-filter-tier="HVC_DIAMOND">💎 Diamond</button>
-      <button class="btn-filter" data-filter-tier="HVC_PLATINUM">⚪ Platinum</button>
-      <button class="btn-filter" data-filter-tier="HVC_GOLD">🟡 Gold</button>
-      <button class="btn-filter" data-filter-tier="INDIBIZ">🔵 Indibiz</button>
-      <button class="btn-filter" data-filter-tier="REGULER">⚫ Reguler</button>
+      <button class="btn-filter" data-filter-tier="all">
+        Semua Tier <span class="filter-count" id="count-tier-all">0</span>
+      </button>
+      <button class="btn-filter" data-filter-tier="HVC_DIAMOND">
+        💎 Diamond <span class="filter-count" id="count-tier-diamond">0</span>
+      </button>
+      <button class="btn-filter" data-filter-tier="HVC_PLATINUM">
+        ⚪ Platinum <span class="filter-count" id="count-tier-platinum">0</span>
+      </button>
+      <button class="btn-filter" data-filter-tier="HVC_GOLD">
+        🟡 Gold <span class="filter-count" id="count-tier-gold">0</span>
+      </button>
+      <button class="btn-filter" data-filter-tier="INDIBIZ">
+        🔵 Indibiz <span class="filter-count" id="count-tier-indibiz">0</span>
+      </button>
+      <button class="btn-filter" data-filter-tier="REGULER">
+        ⚫ Reguler <span class="filter-count" id="count-tier-reguler">0</span>
+      </button>
     </div>
 
     <div class="filter-divider"></div>

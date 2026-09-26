@@ -233,8 +233,16 @@ function renderTicketCard(ticket) {
   const restStr  = ticket.rest ? `<span class="rest-text"> · ${ticket.rest}</span>` : '';
   const teknisi  = ticket.teknisi || '—';
 
+  const isPinned = ticket.is_pinned || ticket.sort_order === 1;
+  const pinBadge = isPinned ? `<span class="pin-badge">📌 PIN</span>` : '';
+  const pinBtn   = `<button class="btn-card-pin ${isPinned ? 'active' : ''}" data-action="pin" data-id="${ticket.id}" title="${isPinned ? 'Lepas Pin' : 'Pin Tiket'}" aria-label="Pin tiket">📌</button>`;
+
+  const rawGroups = ticket.groups;
+  const groups = Array.isArray(rawGroups) ? rawGroups : (typeof rawGroups === 'string' && rawGroups ? rawGroups.split(',').map(s=>s.trim()).filter(Boolean) : []);
+  const groupsHtml = groups.map(g => `<span class="group-tag-chip">📁 ${g}</span>`).join('');
+
   return `
-<article class="ticket-card ${cardClass} tier-${tier.toLowerCase().replace(/_/g,'-')}"
+<article class="ticket-card ${cardClass}${isPinned ? ' card-pinned' : ''} tier-${tier.toLowerCase().replace(/_/g,'-')}"
          data-id="${ticket.id}"
          style="border-left-color: ${cfg.color}; background: ${isDone ? '#f0fdf4' : isKendala ? '#fffbeb' : cfg.bg}">
 
@@ -242,9 +250,11 @@ function renderTicketCard(ticket) {
     <div class="card-header-left">
       ${renderTierBadge(tier)}
       <span class="inc-wrapper">${incStr}</span>
+      ${pinBadge}
     </div>
     <div class="card-header-right">
       ${slaHtml}
+      ${pinBtn}
       <button class="btn-card-delete" data-action="delete" data-id="${ticket.id}" title="Hapus tiket" aria-label="Hapus tiket">✕</button>
     </div>
   </div>
@@ -262,7 +272,11 @@ function renderTicketCard(ticket) {
   </div>
 
   <div class="card-teknisi">
-    👤 <span class="teknisi-name">${teknisi}</span>
+    <div>👤 <span class="teknisi-name">${teknisi}</span></div>
+    <div class="card-groups">
+      ${groupsHtml}
+      <button class="btn-card-group-add" data-action="manage-groups" data-id="${ticket.id}" title="Kelola grup tiket">+ Grup</button>
+    </div>
   </div>
 
   ${renderActions(ticket)}
@@ -286,10 +300,22 @@ function renderAllTickets(tickets, filter = {}) {
   if (filter.tier && filter.tier !== 'all') {
     list = list.filter(t => t.tier === filter.tier);
   }
+  // Filter group
+  if (filter.group && filter.group !== 'all') {
+    list = list.filter(t => {
+      const g = Array.isArray(t.groups) ? t.groups : (typeof t.groups === 'string' && t.groups ? t.groups.split(',').map(s=>s.trim()).filter(Boolean) : []);
+      return g.includes(filter.group);
+    });
+  }
 
   // Sort logic
   const sortMode = filter.sort || 'ttr_desc';
   list.sort((a, b) => {
+    // 0. Tiket yang di-pin SELALU berada di paling atas
+    const pinA = a.is_pinned || a.sort_order === 1 ? 1 : 0;
+    const pinB = b.is_pinned || b.sort_order === 1 ? 1 : 0;
+    if (pinA !== pinB) return pinB - pinA;
+
     if (sortMode === 'ttr_desc') {
       // TTR terlama = jam berjalan paling banyak di paling atas
       const msA = getElapsedMs(a) ?? -1;
@@ -575,6 +601,7 @@ function updateAllTimers(allTickets = []) {
 // ─── Update filter stats ──────────────────────────────────────────────────────
 
 function updateStats(tickets) {
+  // Status counts
   const counts = { all: tickets.length, open: 0, done: 0, kendala: 0 };
   tickets.forEach(t => { if (counts[t.status] !== undefined) counts[t.status]++; });
 
@@ -582,6 +609,89 @@ function updateStats(tickets) {
     const el = document.getElementById(`count-${k}`);
     if (el) el.textContent = counts[k];
   });
+
+  // Tier counts
+  const tierCounts = {
+    all: tickets.length,
+    diamond: 0,
+    platinum: 0,
+    gold: 0,
+    indibiz: 0,
+    reguler: 0
+  };
+  tickets.forEach(t => {
+    const tr = (t.tier || 'REGULER').toUpperCase();
+    if (tr.includes('DIAMOND')) tierCounts.diamond++;
+    else if (tr.includes('PLATINUM')) tierCounts.platinum++;
+    else if (tr.includes('GOLD')) tierCounts.gold++;
+    else if (tr.includes('INDIBIZ')) tierCounts.indibiz++;
+    else tierCounts.reguler++;
+  });
+
+  ['all', 'diamond', 'platinum', 'gold', 'indibiz', 'reguler'].forEach(k => {
+    const el = document.getElementById(`count-tier-${k}`);
+    if (el) el.textContent = tierCounts[k];
+  });
+}
+
+// ─── Group Tabs Rendering ─────────────────────────────────────────────────────
+
+function renderGroupTabs(allGroups = [], activeGroup = 'all', tickets = []) {
+  const container = document.getElementById('custom-group-tabs');
+  const countAllEl = document.getElementById('count-group-all');
+  if (countAllEl) countAllEl.textContent = tickets.length;
+
+  const allTab = document.querySelector('.btn-group-tab[data-group="all"]');
+  if (allTab) allTab.classList.toggle('active', activeGroup === 'all');
+
+  if (!container) return;
+
+  container.innerHTML = allGroups.map(grp => {
+    const isAct = grp === activeGroup;
+    const count = tickets.filter(t => {
+      const g = Array.isArray(t.groups) ? t.groups : (typeof t.groups === 'string' && t.groups ? t.groups.split(',').map(s=>s.trim()).filter(Boolean) : []);
+      return g.includes(grp);
+    }).length;
+
+    return `
+      <button class="btn-group-tab ${isAct ? 'active' : ''}" data-group="${grp}">
+        <span>📁</span> ${grp} <span class="group-count">${count}</span>
+        <span class="btn-delete-group" data-action="delete-group" data-group="${grp}" title="Hapus grup ${grp}">×</span>
+      </button>
+    `;
+  }).join('');
+}
+
+// ─── Modal: Manage Groups per Ticket ──────────────────────────────────────────
+
+function modalManageGroups(ticket, allGroups = []) {
+  const rawGroups = ticket.groups;
+  const currentGroups = Array.isArray(rawGroups) ? rawGroups : (typeof rawGroups === 'string' && rawGroups ? rawGroups.split(',').map(s=>s.trim()).filter(Boolean) : []);
+
+  const itemsHtml = allGroups.length === 0
+    ? `<div style="color:#94a3b8; font-size:0.85rem; padding:10px; text-align:center;">Belum ada grup yang dibuat. Ketik nama grup baru di bawah.</div>`
+    : allGroups.map(g => {
+        const isChecked = currentGroups.includes(g);
+        return `
+          <label class="group-select-item ${isChecked ? 'checked' : ''}" data-group-name="${g}">
+            <span>📁 <b>${g}</b></span>
+            <input type="checkbox" name="ticket-group-check" value="${g}" ${isChecked ? 'checked' : ''}>
+          </label>
+        `;
+      }).join('');
+
+  return `
+    <h3 class="modal-title">📁 Kelola Grup Tiket</h3>
+    <p class="modal-subtitle">Tiket: <code>${ticket.inc || ticket.inet || '—'}</code></p>
+    <div style="font-size:0.82rem; color:#64748b; margin-bottom:8px;">Pilih grup untuk tiket ini (bisa lebih dari satu):</div>
+    <div class="group-select-list" id="group-select-list">
+      ${itemsHtml}
+    </div>
+    <div class="group-create-row">
+      <input type="text" id="input-new-group-name" placeholder="+ Tambah grup baru..." maxlength="30">
+      <button type="button" id="btn-quick-create-group">Tambah</button>
+    </div>
+  `;
 }
 
 export {
@@ -598,6 +708,8 @@ export {
   modalDone,
   modalKendala,
   modalRekap,
+  modalManageGroups,
+  renderGroupTabs,
   updateAllTimers,
   updateStats,
   getSlaInfo,

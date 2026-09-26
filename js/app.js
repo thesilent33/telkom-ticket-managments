@@ -1,5 +1,5 @@
 /**
- * app.js — Main controller: init, event handling, realtime, ukur semua
+ * app.js — Main controller: init, event handling, realtime, ukur semua, grup & pin
  */
 
 import { parseTickets } from './parser.js';
@@ -9,18 +9,90 @@ import {
   renderAllTickets, updateCardInPlace, removeCard, insertCard,
   setUkurLoading, showToast, showModal, showInputModal,
   modalAddTicket, modalDone, modalKendala, modalRekap,
+  modalManageGroups, renderGroupTabs,
   updateAllTimers, updateStats, saveTechnicianName,
 } from './ui.js';
 
 // ─── State ────────────────────────────────────────────────────────────────────
 let tickets           = [];   // array of ticket objects (local cache)
-let activeFilter      = { status: 'all', tier: 'all', sort: 'ttr_desc' };
+let activeFilter      = { status: 'all', tier: 'all', sort: 'ttr_desc', group: 'all' };
+let customGroups      = [];   // array nama grup kustom
 let isMeasuringAll    = false;
 let abortMeasuringAll = false;
 
-// ─── Helper: Get tickets matching active filter ──────────────────────────────
+// ─── Group Storage & Helper ───────────────────────────────────────────────────
+function loadStoredCustomGroups() {
+  try {
+    return JSON.parse(localStorage.getItem('ticket_custom_groups') || '[]');
+  } catch {
+    return [];
+  }
+}
+
+function saveCustomGroups() {
+  localStorage.setItem('ticket_custom_groups', JSON.stringify(customGroups));
+}
+
+function loadStoredGroupMappings() {
+  try {
+    return JSON.parse(localStorage.getItem('ticket_groups_map') || '{}');
+  } catch {
+    return {};
+  }
+}
+
+function mergeGroupsIntoTickets(ticketList) {
+  const map = loadStoredGroupMappings();
+  ticketList.forEach(t => {
+    t.is_pinned = t.sort_order === 1;
+    if (t.groups) {
+      if (typeof t.groups === 'string') {
+        t.groups = t.groups.split(',').map(s => s.trim()).filter(Boolean);
+      }
+    } else if (map[t.id]) {
+      t.groups = map[t.id];
+    } else {
+      t.groups = [];
+    }
+
+    t.groups.forEach(g => {
+      if (!customGroups.includes(g)) customGroups.push(g);
+    });
+  });
+  saveCustomGroups();
+}
+
+async function saveTicketGroups(ticketId, newGroups) {
+  const t = tickets.find(x => x.id === ticketId);
+  if (t) t.groups = newGroups;
+
+  const map = loadStoredGroupMappings();
+  map[ticketId] = newGroups;
+  localStorage.setItem('ticket_groups_map', JSON.stringify(map));
+
+  newGroups.forEach(g => {
+    if (!customGroups.includes(g)) customGroups.push(g);
+  });
+  saveCustomGroups();
+
+  try {
+    await updateTicket(ticketId, { groups: newGroups.join(',') });
+  } catch (err) {
+    // Abaikan jika kolom groups belum ada di DB (data tetap aman di localStorage)
+  }
+}
+
+// ─── Helper: Get tickets matching active group & filters ──────────────────────
+function getGroupTickets() {
+  if (!activeFilter.group || activeFilter.group === 'all') return tickets;
+  return tickets.filter(t => {
+    const g = Array.isArray(t.groups) ? t.groups : (typeof t.groups === 'string' && t.groups ? t.groups.split(',').map(s=>s.trim()).filter(Boolean) : []);
+    return g.includes(activeFilter.group);
+  });
+}
+
 function getFilteredTickets() {
-  let list = [...tickets];
+  let list = getGroupTickets();
   if (activeFilter.status && activeFilter.status !== 'all') {
     list = list.filter(t => t.status === activeFilter.status);
   }
@@ -48,8 +120,12 @@ async function init() {
   showLoading(true);
   try {
     tickets = await fetchTickets();
-    renderAllTickets(tickets, activeFilter);
-    updateStats(tickets);
+    customGroups = loadStoredCustomGroups();
+    mergeGroupsIntoTickets(tickets);
+
+    renderGroupTabs(customGroups, activeFilter.group, tickets);
+    renderAllTickets(getGroupTickets(), activeFilter);
+    updateStats(getGroupTickets());
     updateUkurAllButton();
   } catch (e) {
     showToast('❌ Gagal memuat tiket dari Supabase. Cek config.js!', 'error');
@@ -68,13 +144,41 @@ async function init() {
   document.addEventListener('click', handleClick);
   document.addEventListener('input', handleInput);
 
+  // Group bar events
+  const groupBar = document.getElementById('group-bar');
+  if (groupBar) {
+    groupBar.addEventListener('click', (e) => {
+      const delBtn = e.target.closest('[data-action="delete-group"]');
+      if (delBtn) {
+        e.stopPropagation();
+        handleDeleteGroup(delBtn.dataset.group);
+        return;
+      }
+
+      const addBtn = e.target.closest('#btn-add-group');
+      if (addBtn) {
+        handleCreateNewGroup();
+        return;
+      }
+
+      const tabBtn = e.target.closest('.btn-group-tab[data-group]');
+      if (tabBtn) {
+        activeFilter.group = tabBtn.dataset.group;
+        renderGroupTabs(customGroups, activeFilter.group, tickets);
+        renderAllTickets(getGroupTickets(), activeFilter);
+        updateStats(getGroupTickets());
+        updateUkurAllButton();
+      }
+    });
+  }
+
   // Filter buttons (Status)
   document.querySelectorAll('[data-filter-status]').forEach(btn => {
     btn.addEventListener('click', () => {
       activeFilter.status = btn.dataset.filterStatus;
       document.querySelectorAll('[data-filter-status]').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      renderAllTickets(tickets, activeFilter);
+      renderAllTickets(getGroupTickets(), activeFilter);
       updateUkurAllButton();
     });
   });
@@ -85,7 +189,7 @@ async function init() {
       activeFilter.tier = btn.dataset.filterTier;
       document.querySelectorAll('[data-filter-tier]').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      renderAllTickets(tickets, activeFilter);
+      renderAllTickets(getGroupTickets(), activeFilter);
       updateUkurAllButton();
     });
   });
@@ -96,7 +200,7 @@ async function init() {
     sortSelect.value = activeFilter.sort;
     sortSelect.addEventListener('change', (e) => {
       activeFilter.sort = e.target.value;
-      renderAllTickets(tickets, activeFilter);
+      renderAllTickets(getGroupTickets(), activeFilter);
     });
   }
 
@@ -117,25 +221,32 @@ function showLoading(on) {
 function handleRealtimeChange({ eventType, old: oldRow, new: newRow }) {
   if (eventType === 'INSERT') {
     if (!tickets.find(t => t.id === newRow.id)) {
+      mergeGroupsIntoTickets([newRow]);
       tickets.push(newRow);
-      renderAllTickets(tickets, activeFilter);
-      updateStats(tickets);
+      renderGroupTabs(customGroups, activeFilter.group, tickets);
+      renderAllTickets(getGroupTickets(), activeFilter);
+      updateStats(getGroupTickets());
       updateUkurAllButton();
     }
   } else if (eventType === 'UPDATE') {
     const idx = tickets.findIndex(t => t.id === newRow.id);
     if (idx !== -1) {
+      newRow.groups = newRow.groups || tickets[idx].groups;
+      newRow.is_pinned = newRow.sort_order === 1 || tickets[idx].is_pinned;
       tickets[idx] = newRow;
     } else {
+      mergeGroupsIntoTickets([newRow]);
       tickets.push(newRow);
     }
     updateCardInPlace(newRow);
-    updateStats(tickets);
+    renderGroupTabs(customGroups, activeFilter.group, tickets);
+    updateStats(getGroupTickets());
     updateUkurAllButton();
   } else if (eventType === 'DELETE') {
     tickets = tickets.filter(t => t.id !== oldRow.id);
     removeCard(oldRow.id);
-    updateStats(tickets);
+    renderGroupTabs(customGroups, activeFilter.group, tickets);
+    updateStats(getGroupTickets());
     updateUkurAllButton();
   }
 }
@@ -150,12 +261,14 @@ async function handleClick(e) {
   const ticket = tickets.find(t => t.id === id);
 
   switch (action) {
-    case 'ukur':    return handleUkur(ticket);
-    case 'done':    return handleDone(ticket);
-    case 'kendala': return handleKendala(ticket);
-    case 'rekap':   return handleRekap(ticket);
-    case 'delete':  return handleDelete(ticket);
-    case 'add':     return handleAddTicket();
+    case 'ukur':          return handleUkur(ticket);
+    case 'done':          return handleDone(ticket);
+    case 'kendala':       return handleKendala(ticket);
+    case 'rekap':         return handleRekap(ticket);
+    case 'delete':        return handleDelete(ticket);
+    case 'add':           return handleAddTicket();
+    case 'pin':           return handlePin(ticket);
+    case 'manage-groups': return handleManageGroups(ticket);
   }
 }
 
@@ -626,7 +739,8 @@ function handleDelete(ticket) {
         await deleteTicket(ticket.id);
         tickets = tickets.filter(t => t.id !== ticket.id);
         removeCard(ticket.id);
-        updateStats(tickets);
+        renderGroupTabs(customGroups, activeFilter.group, tickets);
+        updateStats(getGroupTickets());
         updateUkurAllButton();
         showToast('🗑️ Tiket dihapus', 'info');
       } catch (err) {
@@ -634,6 +748,145 @@ function handleDelete(ticket) {
       }
     },
   });
+}
+
+// ─── Action: Pin / Unpin Tiket ────────────────────────────────────────────────
+async function handlePin(ticket) {
+  if (!ticket) return;
+  const currentPin = ticket.is_pinned || ticket.sort_order === 1;
+  const newPin = !currentPin;
+  ticket.is_pinned = newPin;
+  ticket.sort_order = newPin ? 1 : 0;
+
+  // Re-render segera untuk respon instan
+  renderAllTickets(getGroupTickets(), activeFilter);
+  showToast(newPin ? '📌 Tiket dipin ke paling atas!' : '📍 Pin tiket dilepas', 'success');
+
+  try {
+    await updateTicket(ticket.id, { sort_order: newPin ? 1 : 0 });
+  } catch (err) {
+    console.error('Gagal simpan status pin ke Supabase:', err);
+  }
+}
+
+// ─── Action: Buat Grup Baru ───────────────────────────────────────────────────
+function handleCreateNewGroup() {
+  const name = prompt('Masukkan nama grup/folder baru:\n(contoh: Sektor Ubud, Tim 1, Prioritas Pagi)');
+  if (!name || !name.trim()) return;
+  const trimmed = name.trim();
+  if (customGroups.includes(trimmed)) {
+    showToast(`⚠️ Grup "${trimmed}" sudah ada.`, 'warning');
+    return;
+  }
+  customGroups.push(trimmed);
+  saveCustomGroups();
+  renderGroupTabs(customGroups, activeFilter.group, tickets);
+  showToast(`✅ Grup "${trimmed}" berhasil dibuat!`, 'success');
+}
+
+// ─── Action: Hapus Grup ───────────────────────────────────────────────────────
+function handleDeleteGroup(groupName) {
+  if (!groupName) return;
+  if (!confirm(`Hapus grup "${groupName}"?\n(Tiket di dalamnya tidak akan terhapus, hanya tag grup yang dilepas)`)) {
+    return;
+  }
+  customGroups = customGroups.filter(g => g !== groupName);
+  saveCustomGroups();
+
+  // Bersihkan tag grup ini dari tiket-tiket terkait
+  tickets.forEach(t => {
+    if (Array.isArray(t.groups) && t.groups.includes(groupName)) {
+      t.groups = t.groups.filter(g => g !== groupName);
+      saveTicketGroups(t.id, t.groups);
+    }
+  });
+
+  if (activeFilter.group === groupName) {
+    activeFilter.group = 'all';
+  }
+
+  renderGroupTabs(customGroups, activeFilter.group, tickets);
+  renderAllTickets(getGroupTickets(), activeFilter);
+  updateStats(getGroupTickets());
+  updateUkurAllButton();
+  showToast(`🗑️ Grup "${groupName}" telah dihapus.`, 'success');
+}
+
+// ─── Action: Kelola Grup Tiket ────────────────────────────────────────────────
+async function handleManageGroups(ticket) {
+  if (!ticket) return;
+
+  showModal(modalManageGroups(ticket, customGroups), {
+    confirmLabel: '💾 Simpan Grup',
+    cancelLabel: 'Batal',
+    onConfirm: async () => {
+      const checked = Array.from(document.querySelectorAll('input[name="ticket-group-check"]:checked'))
+        .map(el => el.value.trim())
+        .filter(Boolean);
+
+      await saveTicketGroups(ticket.id, checked);
+      updateCardInPlace(ticket);
+      renderGroupTabs(customGroups, activeFilter.group, tickets);
+      updateStats(getGroupTickets());
+      updateUkurAllButton();
+      showToast('📁 Grup tiket berhasil diperbarui!', 'success');
+    }
+  });
+
+  // Interaksi checklist di dalam modal
+  document.querySelectorAll('.group-select-item').forEach(item => {
+    item.addEventListener('click', (e) => {
+      if (e.target.tagName !== 'INPUT') {
+        const chk = item.querySelector('input[type="checkbox"]');
+        if (chk) chk.checked = !chk.checked;
+      }
+      const chk = item.querySelector('input[type="checkbox"]');
+      if (chk) item.classList.toggle('checked', chk.checked);
+    });
+  });
+
+  // Tombol tambah grup cepat di dalam modal
+  const btnQuickAdd = document.getElementById('btn-quick-create-group');
+  const inputNewGroup = document.getElementById('input-new-group-name');
+  const groupList = document.getElementById('group-select-list');
+
+  const addGroupItem = (name) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    if (!customGroups.includes(trimmed)) {
+      customGroups.push(trimmed);
+      saveCustomGroups();
+      renderGroupTabs(customGroups, activeFilter.group, tickets);
+    }
+
+    const existing = document.querySelector(`.group-select-item[data-group-name="${trimmed}"]`);
+    if (!existing && groupList) {
+      const label = document.createElement('label');
+      label.className = 'group-select-item checked';
+      label.dataset.groupName = trimmed;
+      label.innerHTML = `<span>📁 <b>${trimmed}</b></span><input type="checkbox" name="ticket-group-check" value="${trimmed}" checked>`;
+      label.addEventListener('click', (e) => {
+        if (e.target.tagName !== 'INPUT') {
+          const chk = label.querySelector('input[type="checkbox"]');
+          if (chk) chk.checked = !chk.checked;
+        }
+        const chk = label.querySelector('input[type="checkbox"]');
+        if (chk) label.classList.toggle('checked', chk.checked);
+      });
+      groupList.appendChild(label);
+    }
+    inputNewGroup.value = '';
+  };
+
+  if (btnQuickAdd && inputNewGroup) {
+    btnQuickAdd.addEventListener('click', () => addGroupItem(inputNewGroup.value));
+    inputNewGroup.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        addGroupItem(inputNewGroup.value);
+      }
+    });
+  }
 }
 
 // ─── Start ────────────────────────────────────────────────────────────────────

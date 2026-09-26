@@ -146,6 +146,116 @@ code {
   100% { background-position: 0 0; }
 }
 
+/* ── Group Bar (Folder / Custom Lists) ───────────────────────────── */
+.group-bar {
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 6px 16px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.group-bar::-webkit-scrollbar { display: none; }
+
+.group-tabs-scroll {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: max-content;
+}
+
+.custom-group-tabs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-group-tab {
+  background: white;
+  border: 1.5px solid #cbd5e1;
+  color: #475569;
+  border-radius: 999px;
+  padding: 3px 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: var(--transition);
+  white-space: nowrap;
+  height: 28px;
+  box-sizing: border-box;
+}
+
+.btn-group-tab:hover {
+  border-color: #6366f1;
+  color: #4f46e5;
+}
+
+.btn-group-tab.active {
+  background: #4f46e5;
+  border-color: #4f46e5;
+  color: white;
+  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.25);
+}
+
+.group-count {
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 999px;
+  padding: 0 6px;
+  font-size: 0.72rem;
+}
+
+.btn-group-tab.active .group-count {
+  background: rgba(255, 255, 255, 0.28);
+  color: white;
+}
+
+.btn-group-tab .btn-delete-group {
+  margin-left: 4px;
+  opacity: 0.6;
+  font-size: 0.75rem;
+  padding: 0 2px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  border-radius: 50%;
+  line-height: 1;
+}
+
+.btn-group-tab .btn-delete-group:hover {
+  opacity: 1;
+  transform: scale(1.2);
+  color: #ef4444;
+}
+
+.btn-group-add {
+  background: transparent;
+  border: 1.5px dashed #94a3b8;
+  color: #475569;
+  border-radius: 999px;
+  padding: 3px 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: var(--transition);
+  white-space: nowrap;
+  height: 28px;
+  box-sizing: border-box;
+}
+
+.btn-group-add:hover {
+  border-color: #4f46e5;
+  color: #4f46e5;
+  background: rgba(79, 70, 229, 0.05);
+}
+
 /* ── Filter bar ──────────────────────────────────────────────────── */
 .filter-bar {
   background: white;
@@ -324,6 +434,57 @@ code {
   color: #ef4444;
 }
 
+.btn-card-pin {
+  background: transparent;
+  border: 1px solid #cbd5e1;
+  color: #64748b;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--transition);
+  padding: 0;
+  line-height: 1;
+  opacity: 0.55;
+}
+
+.btn-card-pin:hover {
+  opacity: 1;
+  border-color: #f59e0b;
+  background: #fef3c7;
+  transform: scale(1.1);
+}
+
+.btn-card-pin.active {
+  opacity: 1;
+  background: #fef3c7;
+  border-color: #f59e0b;
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.4);
+}
+
+/* Card pinned visual accent */
+.ticket-card.card-pinned {
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.22), 0 1px 3px rgba(0, 0, 0, 0.06);
+  border-right: 3.5px solid #f59e0b !important;
+}
+
+.pin-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #b45309;
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
 .tier-badge {
   font-size: 0.7rem;
   font-weight: 700;
@@ -412,9 +573,125 @@ code {
   padding: 4px 16px 8px;
   font-size: 0.8rem;
   color: #94a3b8;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .teknisi-name { font-weight: 500; color: #64748b; }
+
+/* ── Card Groups ─────────────────────────────────────────────────── */
+.card-groups {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.group-tag-chip {
+  background: #ede9fe;
+  color: #5b21b6;
+  border: 1px solid #ddd6fe;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  line-height: 1.2;
+}
+
+.btn-card-group-add {
+  background: transparent;
+  border: 1px dashed #94a3b8;
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: var(--transition);
+  line-height: 1.2;
+}
+
+.btn-card-group-add:hover {
+  border-color: #6366f1;
+  color: #4f46e5;
+  background: #f5f3ff;
+}
+
+/* Modal Group Selection */
+.group-select-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+  margin: 12px 0;
+  padding: 2px;
+}
+
+.group-select-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: var(--transition);
+  user-select: none;
+}
+
+.group-select-item:hover {
+  background: #f8fafc;
+  border-color: #a5b4fc;
+}
+
+.group-select-item.checked {
+  background: #f5f3ff;
+  border-color: #6366f1;
+}
+
+.group-select-item input[type="checkbox"] {
+  accent-color: #4f46e5;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.group-create-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.group-create-row input {
+  flex: 1;
+  padding: 7px 12px;
+  font-size: 0.85rem;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  outline: none;
+}
+
+.group-create-row input:focus {
+  border-color: #4f46e5;
+}
+
+.group-create-row button {
+  background: #4f46e5;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 0 14px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
 
 /* ── Card states ─────────────────────────────────────────────────── */
 .card-done .inc-code { text-decoration: line-through; opacity: 0.6; }

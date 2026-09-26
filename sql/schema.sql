@@ -89,3 +89,9 @@ ALTER TABLE tickets REPLICA IDENTITY FULL;
 -- (Jalankan di Supabase: Database → Replication → enable tickets)
 -- Atau via SQL:
 -- ALTER PUBLICATION supabase_realtime ADD TABLE tickets;
+
+-- =====================================================
+-- Fitur Tambahan (Grup & Custom Lists)
+-- Jalankan query di bawah jika ingin grup tersinkron multi-perangkat via Supabase:
+-- =====================================================
+-- ALTER TABLE tickets ADD COLUMN IF NOT EXISTS groups TEXT DEFAULT '';
