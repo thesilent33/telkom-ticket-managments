@@ -409,6 +409,18 @@ function renderAllTickets(tickets, filter = {}, options = {}) {
     });
   }
 
+  // Filter optical condition
+  if (filter.optical && filter.optical !== 'all') {
+    list = list.filter(t => {
+      const opt = getCompactRedamanStatus(t);
+      if (filter.optical === 'los') return opt.type === 'los';
+      if (filter.optical === 'unspec') return opt.type === 'unspec';
+      if (filter.optical === 'spec') return opt.type === 'online';
+      if (filter.optical === 'unmeasured') return opt.type === 'unmeasured';
+      return true;
+    });
+  }
+
   // Filter search
   if (filter.search && filter.search.trim()) {
     const q = filter.search.trim().toLowerCase();

@@ -810,6 +810,15 @@ body.batch-mode-active .card-batch-select {
   white-space: nowrap;
 }
 
+.btn-batch-group {
+  background: #0284c7;
+  color: white;
+}
+
+.btn-batch-group:hover:not(:disabled) {
+  background: #0369a1;
+}
+
 .btn-batch-ukur {
   background: #4f46e5;
   color: white;

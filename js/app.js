@@ -189,6 +189,11 @@ function updateBatchActionBar() {
   const countEl = document.getElementById('batch-selected-count');
   if (countEl) countEl.innerHTML = `${countSelected}<span class="hide-mobile"> dipilih</span>`;
 
+  const btnGroup = document.getElementById('btn-batch-group');
+  const countGroupEl = document.getElementById('batch-count-group');
+  if (countGroupEl) countGroupEl.textContent = countSelected;
+  if (btnGroup) btnGroup.disabled = countSelected === 0;
+
   const btnUkur = document.getElementById('btn-batch-ukur');
   const countUkurEl = document.getElementById('batch-count-ukur');
   const btnDelete = document.getElementById('btn-batch-delete');
@@ -372,6 +377,12 @@ async function init() {
   const btnBatchCancel = document.getElementById('btn-batch-cancel');
   if (btnBatchCancel) {
     btnBatchCancel.addEventListener('click', () => setBatchMode(false));
+  }
+
+  // Batch Action Bar: Masukkan ke Grup
+  const btnBatchGroup = document.getElementById('btn-batch-group');
+  if (btnBatchGroup) {
+    btnBatchGroup.addEventListener('click', handleBatchGroup);
   }
 
   // Batch Action Bar: Delete
@@ -816,6 +827,125 @@ function handleBatchSelectAll() {
   }
   renderCurrentView();
   updateBatchActionBar();
+}
+
+async function handleBatchGroup() {
+  if (selectedBatchIds.size === 0) return;
+  const count = selectedBatchIds.size;
+  const toAssignIds = [...selectedBatchIds];
+  const targetTickets = tickets.filter(t => toAssignIds.includes(t.id));
+
+  const itemsHtml = customGroups.length === 0
+    ? `<div id="modal-batch-group-empty" style="color: #94a3b8; font-size: 0.82rem; padding: 10px; text-align: center;">Belum ada grup yang dibuat. Ketik nama grup baru di bawah.</div>`
+    : customGroups.map(g => `
+        <label class="group-select-item" data-group-name="${g}">
+          <span>📁 <b>${g}</b></span>
+          <input type="checkbox" name="batch-group-check" value="${g}">
+        </label>
+      `).join('');
+
+  showModal(`
+    <h3 class="modal-title">📁 Masukkan ke Grup / Folder</h3>
+    <p class="modal-subtitle">Pilih grup tujuan untuk <b>${count} tiket</b> yang dipilih:</p>
+    <div style="font-size:0.82rem; color:#64748b; margin-bottom:8px;">Pilih satu atau lebih grup:</div>
+    <div class="group-select-list" id="modal-batch-group-list" style="max-height: 180px; margin: 8px 0 12px;">
+      ${itemsHtml}
+    </div>
+    <div class="group-create-row" style="margin-top: 6px;">
+      <input type="text" id="input-modal-batch-group" placeholder="+ Tambah grup baru..." maxlength="30">
+      <button type="button" id="btn-modal-batch-group" class="btn btn-secondary btn-sm" style="white-space: nowrap; padding: 6px 12px; font-size: 0.82rem;">Tambah</button>
+    </div>
+  `, {
+    confirmLabel: '💾 Masukkan ke Grup',
+    cancelLabel: 'Batal',
+    onConfirm: async () => {
+      const checkedGroups = Array.from(document.querySelectorAll('input[name="batch-group-check"]:checked'))
+        .map(el => el.value.trim())
+        .filter(Boolean);
+
+      const pending = document.getElementById('input-modal-batch-group')?.value.trim();
+      if (pending) {
+        if (!customGroups.includes(pending)) {
+          customGroups.push(pending);
+          saveCustomGroups();
+        }
+        if (!checkedGroups.includes(pending)) checkedGroups.push(pending);
+      }
+
+      if (checkedGroups.length === 0) {
+        showToast('⚠️ Tidak ada grup yang dipilih.', 'warning');
+        return;
+      }
+
+      showLoading(true);
+      for (const t of targetTickets) {
+        const cur = Array.isArray(t.groups) ? t.groups : (typeof t.groups === 'string' && t.groups ? t.groups.split(',').map(s=>s.trim()).filter(Boolean) : []);
+        const updated = Array.from(new Set([...cur, ...checkedGroups]));
+        await saveTicketGroups(t.id, updated);
+        updateCardInPlace(t);
+      }
+      showLoading(false);
+
+      selectedBatchIds.clear();
+      renderGroupTabs(customGroups, activeFilter.group, tickets);
+      updateStats(getGroupTickets());
+      updateBatchActionBar();
+      renderCurrentView();
+      showToast(`📁 ${count} tiket berhasil dimasukkan ke grup: ${checkedGroups.join(', ')}`, 'success');
+    }
+  });
+
+  // Interaksi checklist di dalam modal
+  const groupList = document.getElementById('modal-batch-group-list');
+  const btnQuickAdd = document.getElementById('btn-modal-batch-group');
+  const inputNewGroup = document.getElementById('input-modal-batch-group');
+
+  const setupToggle = (item) => {
+    item.addEventListener('change', () => {
+      const chk = item.querySelector('input[type="checkbox"]');
+      if (chk) item.classList.toggle('checked', chk.checked);
+    });
+  };
+
+  document.querySelectorAll('#modal-batch-group-list .group-select-item').forEach(setupToggle);
+
+  const addGroupItem = (name) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    if (!customGroups.includes(trimmed)) {
+      customGroups.push(trimmed);
+      saveCustomGroups();
+      renderGroupTabs(customGroups, activeFilter.group, tickets);
+    }
+
+    const emptyMsg = document.getElementById('modal-batch-group-empty');
+    if (emptyMsg) emptyMsg.style.display = 'none';
+
+    const existing = groupList?.querySelector(`.group-select-item[data-group-name="${trimmed}"]`);
+    if (existing) {
+      const chk = existing.querySelector('input[type="checkbox"]');
+      if (chk) chk.checked = true;
+      existing.classList.add('checked');
+    } else if (groupList) {
+      const label = document.createElement('label');
+      label.className = 'group-select-item checked';
+      label.dataset.groupName = trimmed;
+      label.innerHTML = `<span>📁 <b>${trimmed}</b></span><input type="checkbox" name="batch-group-check" value="${trimmed}" checked>`;
+      setupToggle(label);
+      groupList.appendChild(label);
+    }
+    if (inputNewGroup) inputNewGroup.value = '';
+  };
+
+  if (btnQuickAdd && inputNewGroup) {
+    btnQuickAdd.addEventListener('click', () => addGroupItem(inputNewGroup.value));
+    inputNewGroup.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        addGroupItem(inputNewGroup.value);
+      }
+    });
+  }
 }
 
 async function handleBatchDelete() {
