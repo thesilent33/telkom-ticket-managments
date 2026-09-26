@@ -731,7 +731,6 @@ async function handleAddTicket() {
     // Cek duplikat dalam batch input yang sama
     const inputKey = incKey || inetKey;
     if (inputKey && seenInInput.has(inputKey)) {
-      duplicateTickets.push({ ticket: t, label: incKey || inetKey, status: 'input ganda' });
       continue;
     }
     if (inputKey) seenInInput.add(inputKey);
@@ -745,15 +744,49 @@ async function handleAddTicket() {
 
     if (existing) {
       const label = incKey || inetKey || 'Tiket';
-      duplicateTickets.push({ ticket: t, label, status: existing.status });
+      duplicateTickets.push({ ticket: t, existingTicket: existing, label, status: existing.status });
     } else {
       validTickets.push(t);
     }
   }
 
+  const selectedGroups = result.groups || [];
+
   // Jika semua tiket yang dimasukkan sudah ada di sistem
   if (validTickets.length === 0) {
-    if (duplicateTickets.length === 1) {
+    let updatedDupeCount = 0;
+    if (selectedGroups.length > 0) {
+      for (const dupe of duplicateTickets) {
+        if (!dupe.existingTicket) continue;
+        const currentGroups = Array.isArray(dupe.existingTicket.groups)
+          ? [...dupe.existingTicket.groups]
+          : (typeof dupe.existingTicket.groups === 'string' && dupe.existingTicket.groups
+              ? dupe.existingTicket.groups.split(',').map(s => s.trim()).filter(Boolean)
+              : []);
+
+        let changed = false;
+        for (const g of selectedGroups) {
+          if (!currentGroups.includes(g)) {
+            currentGroups.push(g);
+            changed = true;
+          }
+        }
+        if (changed) {
+          await saveTicketGroups(dupe.existingTicket.id, currentGroups);
+          updatedDupeCount++;
+        }
+      }
+      renderGroupTabs(customGroups, activeFilter.group, tickets);
+      renderCurrentView();
+      updateStats(getGroupTickets());
+      updateUkurAllButton();
+    }
+
+    if (updatedDupeCount > 0) {
+      showToast(`📁 ${updatedDupeCount} tiket yang sudah ada berhasil dimasukkan ke grup: ${selectedGroups.join(', ')} (tanpa membuat duplikat).`, 'success');
+    } else if (selectedGroups.length > 0) {
+      showToast(`⚠️ Tiket sudah ada di sistem dan sudah terdaftar di grup ${selectedGroups.join(', ')}.`, 'info');
+    } else if (duplicateTickets.length === 1) {
       const dupe = duplicateTickets[0];
       showToast(`⚠️ Tiket ${dupe.label} sudah ada di sistem (Status: ${dupe.status})!`, 'warning');
     } else {
@@ -766,7 +799,6 @@ async function handleAddTicket() {
   try {
     const inserted = await addTickets(validTickets);
     if (inserted) {
-      const selectedGroups = result.groups || [];
       for (const t of inserted) {
         t.groups = [...selectedGroups];
         if (!tickets.find(x => x.id === t.id)) {
@@ -776,18 +808,49 @@ async function handleAddTicket() {
           await saveTicketGroups(t.id, selectedGroups);
         }
       }
-      renderGroupTabs(customGroups, activeFilter.group, tickets);
-      renderCurrentView();
-      updateStats(getGroupTickets());
-      updateUkurAllButton();
     }
-    const groupNote = (result.groups && result.groups.length > 0)
-      ? ` (ke grup: ${result.groups.join(', ')})`
+
+    // Auto-merge grup ke tiket yang duplikat jika grup dipilih
+    let updatedDupeCount = 0;
+    if (selectedGroups.length > 0 && duplicateTickets.length > 0) {
+      for (const dupe of duplicateTickets) {
+        if (!dupe.existingTicket) continue;
+        const currentGroups = Array.isArray(dupe.existingTicket.groups)
+          ? [...dupe.existingTicket.groups]
+          : (typeof dupe.existingTicket.groups === 'string' && dupe.existingTicket.groups
+              ? dupe.existingTicket.groups.split(',').map(s => s.trim()).filter(Boolean)
+              : []);
+
+        let changed = false;
+        for (const g of selectedGroups) {
+          if (!currentGroups.includes(g)) {
+            currentGroups.push(g);
+            changed = true;
+          }
+        }
+        if (changed) {
+          await saveTicketGroups(dupe.existingTicket.id, currentGroups);
+          updatedDupeCount++;
+        }
+      }
+    }
+
+    renderGroupTabs(customGroups, activeFilter.group, tickets);
+    renderCurrentView();
+    updateStats(getGroupTickets());
+    updateUkurAllButton();
+
+    const groupNote = (selectedGroups.length > 0)
+      ? ` (ke grup: ${selectedGroups.join(', ')})`
       : '';
 
     if (duplicateTickets.length > 0) {
-      const dupeLabels = duplicateTickets.map(d => d.label).join(', ');
-      showToast(`✅ ${validTickets.length} tiket ditambahkan${groupNote}. ⚠️ ${duplicateTickets.length} tiket dilewati karena sudah ada: ${dupeLabels}`, 'warning');
+      if (updatedDupeCount > 0) {
+        showToast(`✅ ${validTickets.length} tiket baru ditambahkan${groupNote}. 📁 ${updatedDupeCount} tiket lama otomatis dimasukkan ke grup tersebut.`, 'success');
+      } else {
+        const dupeLabels = duplicateTickets.map(d => d.label).join(', ');
+        showToast(`✅ ${validTickets.length} tiket ditambahkan${groupNote}. ⚠️ ${duplicateTickets.length} tiket dilewati karena sudah ada: ${dupeLabels}`, 'warning');
+      }
     } else {
       showToast(`✅ ${validTickets.length} tiket berhasil ditambahkan${groupNote}!`, 'success');
     }
