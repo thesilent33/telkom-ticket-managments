@@ -967,6 +967,8 @@ body.batch-mode-active .card-batch-select {
   .btn-batch-action {
     padding: 4px 6px;
   }
+}
+
 /* ─── Floating Actions Bar (Detail & Tambah Tiket) ────────────────── */
 .floating-actions {
   position: fixed;
