@@ -686,6 +686,124 @@ code {
   color: #4f46e5;
 }
 
+/* ── Ukur Massal Scope Options ───────────────────────────────────── */
+.ukur-scope-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 14px 0 12px;
+}
+
+.ukur-option-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  background: white;
+  cursor: pointer;
+  transition: var(--transition);
+  user-select: none;
+}
+
+.ukur-option-card:hover:not(.disabled) {
+  border-color: #818cf8;
+  background: #f8faff;
+}
+
+.ukur-option-card.active {
+  border-color: #4f46e5;
+  background: #f5f3ff;
+  box-shadow: 0 0 0 1.5px #4f46e5;
+}
+
+.ukur-option-card.disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  background: #f8fafc;
+}
+
+.ukur-option-card input[type="radio"] {
+  margin-top: 3px;
+  accent-color: #4f46e5;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.ukur-option-card.disabled input[type="radio"] {
+  cursor: not-allowed;
+}
+
+.ukur-option-content {
+  flex: 1;
+}
+
+.ukur-option-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+
+.ukur-option-title {
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: #1e293b;
+}
+
+.ukur-option-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.badge-all {
+  background: #e0e7ff;
+  color: #4338ca;
+}
+
+.badge-los {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.badge-unmeasured {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.ukur-option-desc {
+  font-size: 0.76rem;
+  color: #64748b;
+  line-height: 1.35;
+}
+
+.ukur-info-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 11px 14px;
+  margin-top: 10px;
+  font-size: 0.84rem;
+  color: #334155;
+  line-height: 1.4;
+}
+
+.btn-ukur-all-header.measuring-active {
+  background: rgba(239, 68, 68, 0.45);
+  border-color: rgba(255, 255, 255, 0.6);
+  animation: pulse-measuring 1.5s infinite;
+}
+
+@keyframes pulse-measuring {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.75; }
+}
+
 /* ── Rekap box ───────────────────────────────────────────────────── */
 .rekap-box {
   background: #1e293b;

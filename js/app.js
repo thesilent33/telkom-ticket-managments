@@ -13,9 +13,10 @@ import {
 } from './ui.js';
 
 // ─── State ────────────────────────────────────────────────────────────────────
-let tickets        = [];   // array of ticket objects (local cache)
-let activeFilter   = { status: 'all', tier: 'all', sort: 'ttr_desc' };
-let isMeasuringAll = false;
+let tickets           = [];   // array of ticket objects (local cache)
+let activeFilter      = { status: 'all', tier: 'all', sort: 'ttr_desc' };
+let isMeasuringAll    = false;
+let abortMeasuringAll = false;
 
 // ─── Helper: Get tickets matching active filter ──────────────────────────────
 function getFilteredTickets() {
@@ -271,39 +272,120 @@ async function handleUkur(ticket) {
   }
 }
 
-// ─── Action: Ukur Semua (Terisolasi tiap Filter) ──────────────────────────────
-async function handleUkurSemua() {
-  if (isMeasuringAll) return;
+// ─── Helper: Identifikasi Tiket LOS & Belum Diukur ────────────────────────────
+function isTicketLos(t) {
+  const s = (t.onu_status || '').toUpperCase();
+  const raw = t.raw_input || '';
+  const res = t.result_text || '';
+  const gg = t.gangguan || '';
+  return s.includes('LOS') ||
+         s.includes('OFFLINE') ||
+         s.includes('DYING GASP') ||
+         /-\s*‼️/i.test(raw) ||
+         /\bLOS\b/i.test(raw) ||
+         /\bLOS\b/i.test(res) ||
+         /\bLOS\b/i.test(gg);
+}
 
-  const targets = getFilteredTickets().filter(t => t.inet);
-  if (targets.length === 0) {
+function isTicketUnmeasured(t) {
+  return !t.redaman_at && !t.onu_status;
+}
+
+// ─── Action: Ukur Semua (Terisolasi tiap Filter & dengan Opsi Scope) ───────────
+async function handleUkurSemua() {
+  if (isMeasuringAll) {
+    if (confirm('Hentikan proses pengukuran massal yang sedang berjalan?')) {
+      abortMeasuringAll = true;
+    }
+    return;
+  }
+
+  const baseTargets = getFilteredTickets().filter(t => t.inet);
+  if (baseTargets.length === 0) {
     showToast('⚠️ Tidak ada tiket ber-iNetID pada filter yang aktif.', 'warning');
     return;
   }
 
+  const targetsAll = baseTargets;
+  const targetsLos = baseTargets.filter(isTicketLos);
+  const targetsUnmeasured = baseTargets.filter(isTicketUnmeasured);
+
   const statusLabel = activeFilter.status === 'all' ? 'Semua' : activeFilter.status.toUpperCase();
   const tierLabel   = activeFilter.tier === 'all'   ? 'Semua' : activeFilter.tier;
 
+  let selectedScope = 'all';
+  let currentTargets = targetsAll;
+
   showModal(`
-    <h3 class="modal-title">📡 Ukur Semua Redaman</h3>
+    <h3 class="modal-title">📡 Ukur Redaman Massal</h3>
     <p class="modal-subtitle">Filter Aktif: Status [<b>${statusLabel}</b>] · Tier [<b>${tierLabel}</b>]</p>
-    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px; margin:12px 0; font-size:0.86rem; color:#334155;">
-      Akan mengukur redaman untuk <b>${targets.length} tiket</b> secara berurutan.<br>
-      <span style="font-size:0.78rem; color:#64748b;">(Tiap pengukuran butuh waktu ~15-30 detik ke server i-booster Telkom)</span>
+
+    <div class="ukur-scope-options">
+      <!-- Opsi 1: Ukur All -->
+      <label class="ukur-option-card active" data-scope="all">
+        <input type="radio" name="ukur-scope" value="all" checked>
+        <div class="ukur-option-content">
+          <div class="ukur-option-header">
+            <span class="ukur-option-title">🌐 Ukur All</span>
+            <span class="ukur-option-badge badge-all">${targetsAll.length} tiket</span>
+          </div>
+          <div class="ukur-option-desc">Ukur semua tiket yang ada pada filter aktif saat ini</div>
+        </div>
+      </label>
+
+      <!-- Opsi 2: Ukur LOS -->
+      <label class="ukur-option-card ${targetsLos.length === 0 ? 'disabled' : ''}" data-scope="los">
+        <input type="radio" name="ukur-scope" value="los" ${targetsLos.length === 0 ? 'disabled' : ''}>
+        <div class="ukur-option-content">
+          <div class="ukur-option-header">
+            <span class="ukur-option-title">🔴 Ukur LOS</span>
+            <span class="ukur-option-badge badge-los">${targetsLos.length} tiket</span>
+          </div>
+          <div class="ukur-option-desc">Hanya tiket berstatus LOS / putus / belum ada redaman normal</div>
+        </div>
+      </label>
+
+      <!-- Opsi 3: Ukur yg Belum Diukur -->
+      <label class="ukur-option-card ${targetsUnmeasured.length === 0 ? 'disabled' : ''}" data-scope="unmeasured">
+        <input type="radio" name="ukur-scope" value="unmeasured" ${targetsUnmeasured.length === 0 ? 'disabled' : ''}>
+        <div class="ukur-option-content">
+          <div class="ukur-option-header">
+            <span class="ukur-option-title">⏳ Ukur yg Belum Diukur</span>
+            <span class="ukur-option-badge badge-unmeasured">${targetsUnmeasured.length} tiket</span>
+          </div>
+          <div class="ukur-option-desc">Hanya tiket baru yang belum pernah diukur di aplikasi ini</div>
+        </div>
+      </label>
+    </div>
+
+    <div class="ukur-info-box" id="ukur-info-box">
+      Akan mengukur redaman untuk <b>${targetsAll.length} tiket</b> secara berurutan.<br>
+      <span style="font-size:0.75rem; color:#64748b;">(Estimasi waktu: ~${Math.ceil((targetsAll.length * 20) / 60)} menit. Server i-booster Telkom ~15-25 detik/tiket)</span>
     </div>
   `, {
-    confirmLabel: `📡 Mulai Ukur (${targets.length})`,
+    confirmLabel: `📡 Mulai Ukur (${targetsAll.length})`,
     cancelLabel: 'Batal',
     onConfirm: async () => {
+      if (currentTargets.length === 0) {
+        showToast('⚠️ Tidak ada tiket pada kategori yang dipilih.', 'warning');
+        return;
+      }
+
       isMeasuringAll = true;
+      abortMeasuringAll = false;
       const btn = document.getElementById('btn-ukur-all');
-      if (btn) btn.disabled = true;
+      if (btn) {
+        btn.disabled = false;
+        btn.classList.add('measuring-active');
+      }
 
       let successCount = 0;
-      for (let i = 0; i < targets.length; i++) {
-        const t = targets[i];
+      for (let i = 0; i < currentTargets.length; i++) {
+        if (abortMeasuringAll) break;
+
+        const t = currentTargets[i];
         if (btn) {
-          btn.innerHTML = `<span>⏳</span><span>${i + 1}/${targets.length}</span>`;
+          btn.innerHTML = `<span>⏳</span><span>${i + 1}/${currentTargets.length} (Batal)</span>`;
         }
         setUkurLoading(t.id, true);
 
@@ -338,11 +420,61 @@ async function handleUkurSemua() {
 
       isMeasuringAll = false;
       if (btn) {
-        btn.innerHTML = `<span>📡</span><span>Ukur Semua (<span id="ukur-all-count">${targets.length}</span>)</span>`;
+        btn.classList.remove('measuring-active');
+        btn.innerHTML = `<span>📡</span><span>Ukur Semua (<span id="ukur-all-count">${baseTargets.length}</span>)</span>`;
       }
       updateUkurAllButton();
-      showToast(`✅ Selesai mengukur ${successCount} dari ${targets.length} tiket!`, 'success');
+
+      if (abortMeasuringAll) {
+        showToast(`⏹️ Pengukuran dihentikan (${successCount}/${currentTargets.length} selesai).`, 'warning');
+      } else {
+        showToast(`✅ Selesai mengukur ${successCount} dari ${currentTargets.length} tiket!`, 'success');
+      }
     }
+  });
+
+  // Attach interactive listeners for option selection
+  const cards = document.querySelectorAll('.ukur-option-card');
+  const infoBox = document.getElementById('ukur-info-box');
+  const confirmBtn = document.getElementById('modal-confirm');
+
+  cards.forEach(card => {
+    card.addEventListener('click', () => {
+      if (card.classList.contains('disabled')) return;
+      const scope = card.dataset.scope;
+      if (!scope) return;
+      selectedScope = scope;
+
+      if (scope === 'all') currentTargets = targetsAll;
+      else if (scope === 'los') currentTargets = targetsLos;
+      else if (scope === 'unmeasured') currentTargets = targetsUnmeasured;
+
+      const count = currentTargets.length;
+
+      cards.forEach(c => {
+        const isCur = c.dataset.scope === scope;
+        c.classList.toggle('active', isCur);
+        const radio = c.querySelector('input[type="radio"]');
+        if (radio) radio.checked = isCur;
+      });
+
+      if (confirmBtn) {
+        confirmBtn.disabled = count === 0;
+        confirmBtn.textContent = count > 0 ? `📡 Mulai Ukur (${count})` : 'Tidak Ada Tiket';
+      }
+
+      if (infoBox) {
+        if (count === 0) {
+          infoBox.innerHTML = `⚠️ <b>0 tiket ditemukan</b> untuk opsi ini.`;
+        } else {
+          const estMin = Math.ceil((count * 20) / 60);
+          infoBox.innerHTML = `
+            Akan mengukur redaman untuk <b>${count} tiket</b> secara berurutan.<br>
+            <span style="font-size:0.75rem; color:#64748b;">(Estimasi waktu: ~${estMin} menit. Server i-booster Telkom ~15-25 detik/tiket)</span>
+          `;
+        }
+      }
+    });
   });
 }
 
