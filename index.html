@@ -24,7 +24,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 
   <!-- Custom CSS -->
-  <link rel="stylesheet" href="css/style.css?v=2.4">
+  <link rel="stylesheet" href="css/style.css?v=2.5">
 </head>
 <body>
 
@@ -50,10 +50,11 @@
         <span>📡</span>
         <span class="btn-label">Ukur <span class="hide-mobile">Semua </span>(<span id="ukur-all-count">0</span>)</span>
       </button>
-      <button class="btn-add-header" data-action="add" title="Tambah tiket baru">
-        <span>➕</span>
-        <span class="btn-label">Tambah</span>
-      </button>
+      <div class="header-search-wrap" id="header-search-wrap" title="Cari tiket, inet, ODP, teknisi...">
+        <span class="header-search-icon">🔍</span>
+        <input type="search" id="input-search" class="header-input-search" placeholder="Cari..." autocomplete="off">
+        <button type="button" id="btn-clear-search" class="btn-clear-search" style="display:none;" title="Bersihkan pencarian">✕</button>
+      </div>
     </div>
   </header>
 
@@ -156,28 +157,6 @@
         <option value="created_desc">🕒 Baru Ditambahkan</option>
       </select>
     </div>
-
-    <div class="filter-divider"></div>
-
-    <!-- Toggle Collapse / Expand All -->
-    <div class="filter-group">
-      <button class="btn-filter" id="btn-toggle-compact" title="Ganti mode tampilan ringkas / rincian lengkap">
-        <span id="icon-compact-mode">📖</span>
-        <span id="label-compact-mode">Detail</span>
-      </button>
-    </div>
-
-    <div class="filter-divider"></div>
-
-    <!-- Search Box -->
-    <div class="filter-group filter-search-group">
-      <div class="search-box">
-        <span class="search-icon">🔍</span>
-        <input type="search" id="input-search" class="input-search" placeholder="Cari INC, inet, ODP, teknisi..." autocomplete="off">
-        <button type="button" id="btn-clear-search" class="btn-clear-search" style="display:none;" title="Bersihkan pencarian">✕</button>
-      </div>
-    </div>
-
   </div>
 
 </div>
@@ -219,6 +198,25 @@
   </div>
 </div>
 
+<!-- ── Floating Actions Bar (Detail & Tambah Tiket) ─────────────── -->
+<div id="floating-actions" class="floating-actions" role="toolbar" aria-label="Aksi cepat">
+  <button id="btn-floating-detail" class="btn-floating btn-floating-detail" title="Ganti mode tampilan ringkas / rincian lengkap">
+    <span id="icon-compact-mode">📖</span>
+    <span id="label-compact-mode">Detail</span>
+  </button>
+  <button id="btn-floating-add" class="btn-floating btn-floating-add" data-action="add" title="Tambah tiket baru">
+    <span>➕</span>
+    <span>Tambah Tiket</span>
+  </button>
+</div>
+
+<!-- ── Floating Back to Top Button ───────────────────────────────── -->
+<button id="btn-back-to-top" class="btn-back-to-top" title="Kembali ke atas" aria-label="Kembali ke atas">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M18 15l-6-6-6 6"/>
+  </svg>
+</button>
+
 <!-- ── Modal ─────────────────────────────────────────────────────── -->
 <div id="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title">
   <div id="modal-box">
@@ -236,7 +234,7 @@
 <!-- Di-render oleh JS saat dibutuhkan -->
 
 <!-- ── Scripts (ES Modules) ───────────────────────────────────────── -->
-<script type="module" src="js/app.js?v=2.4"></script>
+<script type="module" src="js/app.js?v=2.5"></script>
 
 <!-- ── Inline: update ticket summary header ──────────────────────── -->
 <script type="module">

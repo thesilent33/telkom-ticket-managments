@@ -290,7 +290,7 @@ async function init() {
     }
   });
 
-  // Mobile Autohide Sticky Header saat scroll ke bawah
+  // Autohide Sticky Header & Floating Actions saat scroll
   let lastScrollY = window.scrollY;
   let scrollTicking = false;
 
@@ -299,21 +299,41 @@ async function init() {
       window.requestAnimationFrame(() => {
         const currentScrollY = window.scrollY;
         const stickyNav = document.getElementById('sticky-nav');
-        if (stickyNav) {
-          const delta = currentScrollY - lastScrollY;
-          // Hanya sembunyikan jika scroll ke bawah dan sudah lewat header atas (> 60px)
-          if (currentScrollY > 60 && delta > 8) {
-            stickyNav.classList.add('nav-hidden');
-          } else if (delta < -8 || currentScrollY <= 25) {
-            stickyNav.classList.remove('nav-hidden');
-          }
+        const floatingActions = document.getElementById('floating-actions');
+        const btnBackToTop = document.getElementById('btn-back-to-top');
+
+        const delta = currentScrollY - lastScrollY;
+
+        // Sticky Nav & Floating Actions autohide (scroll down = hide, scroll up = show)
+        if (currentScrollY > 60 && delta > 8) {
+          stickyNav?.classList.add('nav-hidden');
+          floatingActions?.classList.add('floating-hidden');
+        } else if (delta < -8 || currentScrollY <= 25) {
+          stickyNav?.classList.remove('nav-hidden');
+          floatingActions?.classList.remove('floating-hidden');
         }
+
+        // Tombol Kembali ke Atas: Muncul jika scroll > 250px
+        if (currentScrollY > 250) {
+          btnBackToTop?.classList.add('visible');
+        } else {
+          btnBackToTop?.classList.remove('visible');
+        }
+
         lastScrollY = Math.max(0, currentScrollY);
         scrollTicking = false;
       });
       scrollTicking = true;
     }
   }, { passive: true });
+
+  // Floating Back to top button
+  const btnBackToTop = document.getElementById('btn-back-to-top');
+  if (btnBackToTop) {
+    btnBackToTop.addEventListener('click', () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  }
 
   // Search input & clear button
   const inputSearch = document.getElementById('input-search');
@@ -336,14 +356,14 @@ async function init() {
     });
   }
 
-  // Toggle Collapse / Expand All
-  const btnToggleCompact = document.getElementById('btn-toggle-compact');
+  // Toggle Collapse / Expand All (Floating Detail Button)
+  const btnToggleCompact = document.getElementById('btn-floating-detail') || document.getElementById('btn-toggle-compact');
   const iconCompactMode = document.getElementById('icon-compact-mode');
   const labelCompactMode = document.getElementById('label-compact-mode');
 
   // Default mode: compact mode is TRUE
-  if (labelCompactMode) labelCompactMode.textContent = 'Detail';
-  if (iconCompactMode) iconCompactMode.textContent = '📖';
+  if (labelCompactMode) labelCompactMode.textContent = isCompactMode ? 'Detail' : 'Ringkas';
+  if (iconCompactMode) iconCompactMode.textContent = isCompactMode ? '📖' : '📁';
 
   if (btnToggleCompact) {
     btnToggleCompact.addEventListener('click', () => {
@@ -364,6 +384,12 @@ async function init() {
       }
       renderCurrentView();
     });
+  }
+
+  // Floating Tambah Tiket button
+  const btnFloatingAdd = document.getElementById('btn-floating-add');
+  if (btnFloatingAdd) {
+    btnFloatingAdd.addEventListener('click', handleAddTicket);
   }
 
   // Batch Mode Toggle button di header
