@@ -443,6 +443,13 @@ code {
   box-shadow: 0 2px 6px rgba(16, 185, 129, 0.35);
 }
 
+.btn-optical-chip.chip-not-found.active {
+  background: #ea580c;
+  border-color: #c2410c;
+  color: white;
+  box-shadow: 0 2px 6px rgba(234, 88, 12, 0.35);
+}
+
 .btn-optical-chip.chip-unmeasured.active {
   background: #64748b;
   border-color: #475569;
@@ -808,6 +815,15 @@ body.batch-mode-active .card-batch-select {
   gap: 4px;
   transition: var(--transition);
   white-space: nowrap;
+}
+
+.btn-batch-copy {
+  background: #0d9488;
+  color: white;
+}
+
+.btn-batch-copy:hover:not(:disabled) {
+  background: #0f766e;
 }
 
 .btn-batch-group {

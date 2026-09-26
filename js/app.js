@@ -134,6 +134,7 @@ function getFilteredTickets() {
       if (activeFilter.optical === 'los') return opt.type === 'los';
       if (activeFilter.optical === 'unspec') return opt.type === 'unspec';
       if (activeFilter.optical === 'spec') return opt.type === 'online';
+      if (activeFilter.optical === 'not_found') return opt.type === 'not_found';
       if (activeFilter.optical === 'unmeasured') return opt.type === 'unmeasured';
       return true;
     });
@@ -189,6 +190,11 @@ function updateBatchActionBar() {
   const countSelected = selectedBatchIds.size;
   const countEl = document.getElementById('batch-selected-count');
   if (countEl) countEl.innerHTML = `${countSelected}<span class="hide-mobile"> dipilih</span>`;
+
+  const btnCopy = document.getElementById('btn-batch-copy');
+  const countCopyEl = document.getElementById('batch-count-copy');
+  if (countCopyEl) countCopyEl.textContent = countSelected;
+  if (btnCopy) btnCopy.disabled = countSelected === 0;
 
   const btnGroup = document.getElementById('btn-batch-group');
   const countGroupEl = document.getElementById('batch-count-group');
@@ -378,6 +384,12 @@ async function init() {
   const btnBatchCancel = document.getElementById('btn-batch-cancel');
   if (btnBatchCancel) {
     btnBatchCancel.addEventListener('click', () => setBatchMode(false));
+  }
+
+  // Batch Action Bar: Copy Tiket
+  const btnBatchCopy = document.getElementById('btn-batch-copy');
+  if (btnBatchCopy) {
+    btnBatchCopy.addEventListener('click', handleBatchCopy);
   }
 
   // Batch Action Bar: Masukkan ke Grup
@@ -859,6 +871,41 @@ function handleBatchSelectAll() {
   }
   renderCurrentView();
   updateBatchActionBar();
+}
+
+async function handleBatchCopy() {
+  if (selectedBatchIds.size === 0) return;
+
+  const selectedTickets = tickets.filter(t => selectedBatchIds.has(t.id));
+  const incList = selectedTickets
+    .map(t => (t.inc || '').trim())
+    .filter(Boolean)
+    .join('\n');
+
+  if (!incList) {
+    showToast('⚠️ Tidak ada nomor tiket (INC) pada tiket yang dipilih.', 'warning');
+    return;
+  }
+
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(incList);
+    } else {
+      const textArea = document.createElement('textarea');
+      textArea.value = incList;
+      textArea.style.position = 'fixed';
+      textArea.style.opacity = '0';
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+    }
+    showToast(`📋 ${selectedTickets.length} nomor tiket berhasil disalin ke clipboard!`, 'success');
+  } catch (err) {
+    console.error('Gagal copy tiket:', err);
+    showToast('❌ Gagal menyalin ke clipboard. Izin browser ditolak.', 'error');
+  }
 }
 
 async function handleBatchGroup() {

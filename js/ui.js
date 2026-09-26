@@ -153,8 +153,8 @@ function getCompactRedamanStatus(ticket) {
   // 2.5 Cek status jika user internet tidak ditemukan
   if (onuStatus.includes('TIDAK DITEMUKAN') || onuStatus.includes('BELUM TERDAFTAR') || rawText.includes('TIDAK MENEMUKAN POSISI PERANGKAT')) {
     return {
-      type: 'unspec',
-      text: 'St: Tidak Ditemukan ⚠️',
+      type: 'not_found',
+      text: 'St: Tidak Ditemukan ❓',
       badgeClass: 'status-unspec',
     };
   }
@@ -425,6 +425,7 @@ function renderAllTickets(tickets, filter = {}, options = {}) {
       if (filter.optical === 'los') return opt.type === 'los';
       if (filter.optical === 'unspec') return opt.type === 'unspec';
       if (filter.optical === 'spec') return opt.type === 'online';
+      if (filter.optical === 'not_found') return opt.type === 'not_found';
       if (filter.optical === 'unmeasured') return opt.type === 'unmeasured';
       return true;
     });
@@ -814,6 +815,7 @@ function updateStats(tickets, filter = {}) {
       if (filter.optical === 'los') return st.type === 'los';
       if (filter.optical === 'unspec') return st.type === 'unspec';
       if (filter.optical === 'spec') return st.type === 'online';
+      if (filter.optical === 'not_found') return st.type === 'not_found';
       if (filter.optical === 'unmeasured') return st.type === 'unmeasured';
       return true;
     });
@@ -837,6 +839,7 @@ function updateStats(tickets, filter = {}) {
       if (filter.optical === 'los') return st.type === 'los';
       if (filter.optical === 'unspec') return st.type === 'unspec';
       if (filter.optical === 'spec') return st.type === 'online';
+      if (filter.optical === 'not_found') return st.type === 'not_found';
       if (filter.optical === 'unmeasured') return st.type === 'unmeasured';
       return true;
     });
@@ -876,6 +879,7 @@ function updateStats(tickets, filter = {}) {
     los: 0,
     unspec: 0,
     spec: 0,
+    not_found: 0,
     unmeasured: 0
   };
   forOptical.forEach(t => {
@@ -883,10 +887,11 @@ function updateStats(tickets, filter = {}) {
     if (st.type === 'los') optCounts.los++;
     else if (st.type === 'unspec') optCounts.unspec++;
     else if (st.type === 'online') optCounts.spec++;
+    else if (st.type === 'not_found') optCounts.not_found++;
     else optCounts.unmeasured++;
   });
 
-  ['all', 'los', 'unspec', 'spec', 'unmeasured'].forEach(k => {
+  ['all', 'los', 'unspec', 'spec', 'not_found', 'unmeasured'].forEach(k => {
     const el = document.getElementById(`count-opt-${k}`);
     if (el) el.textContent = optCounts[k];
   });
