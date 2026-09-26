@@ -260,7 +260,7 @@ function renderRedaman(ticket) {
       </div>`;
 
   return `
-    <div class="redaman-compact-row">
+    <div class="redaman-compact-row" data-action="toggle-card-collapse" data-id="${ticket.id}" title="Klik untuk buka / tutup rincian">
       <div class="redaman-compact-left">
         <span class="redaman-compact-badge ${compactStatus.badgeClass}">${compactStatus.text}</span>
         ${timeHtml}

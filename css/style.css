@@ -771,6 +771,21 @@ code {
   justify-content: space-between;
   width: 100%;
   gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  border-radius: 8px;
+  padding: 4px 6px;
+  margin: -2px -4px;
+  transition: background 0.15s ease;
+}
+
+.redaman-compact-row:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.redaman-compact-row:active {
+  background: rgba(0, 0, 0, 0.08);
 }
 
 .redaman-compact-left {
@@ -832,6 +847,7 @@ code {
   transition: transform 0.2s;
   display: inline-flex;
   align-items: center;
+  pointer-events: none;
 }
 
 .ticket-card:not(.is-collapsed) .btn-card-expand {

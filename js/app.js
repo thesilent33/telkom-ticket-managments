@@ -14,15 +14,47 @@ import {
   getCompactRedamanStatus,
 } from './ui.js';
 
+// ─── Filter State Storage ─────────────────────────────────────────────────────
+function loadStoredFilterState() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('ticket_active_filter') || '{}');
+    return {
+      status:  saved.status  || 'all',
+      tier:    saved.tier    || 'all',
+      optical: saved.optical || 'all',
+      sort:    saved.sort    || 'ttr_desc',
+      group:   saved.group   || 'all',
+      search:  saved.search  || '',
+    };
+  } catch {
+    return { status: 'all', tier: 'all', optical: 'all', sort: 'ttr_desc', group: 'all', search: '' };
+  }
+}
+
+function saveFilterState() {
+  try {
+    localStorage.setItem('ticket_active_filter', JSON.stringify({
+      status:  activeFilter.status,
+      tier:    activeFilter.tier,
+      optical: activeFilter.optical,
+      sort:    activeFilter.sort,
+      group:   activeFilter.group,
+      search:  activeFilter.search,
+    }));
+  } catch (e) {
+    console.error('Gagal menyimpan status filter:', e);
+  }
+}
+
 // ─── State ────────────────────────────────────────────────────────────────────
 let tickets           = [];   // array of ticket objects (local cache)
-let activeFilter      = { status: 'all', tier: 'all', optical: 'all', sort: 'ttr_desc', group: 'all', search: '' };
+let activeFilter      = loadStoredFilterState();
 let customGroups      = [];   // array nama grup kustom
 let isMeasuringAll    = false;
 let abortMeasuringAll = false;
 
 // Mode Ringkas / Compact vs Detail (Default: Collapse / Compact)
-let isCompactMode       = true;
+let isCompactMode       = localStorage.getItem('ticket_compact_mode') !== 'false';
 const expandedTicketIds  = new Set();
 const collapsedTicketIds = new Set();
 
@@ -253,6 +285,12 @@ async function init() {
     customGroups = loadStoredCustomGroups();
     mergeGroupsIntoTickets(tickets);
 
+    // Pastikan grup aktif masih ada di customGroups
+    if (activeFilter.group !== 'all' && !customGroups.includes(activeFilter.group)) {
+      activeFilter.group = 'all';
+      saveFilterState();
+    }
+
     renderGroupTabs(customGroups, activeFilter.group, tickets);
     renderCurrentView();
     updateStats(getGroupTickets());
@@ -340,8 +378,15 @@ async function init() {
   const btnClearSearch = document.getElementById('btn-clear-search');
   const headerSearchWrap = document.getElementById('header-search-wrap');
   if (inputSearch) {
+    if (activeFilter.search) {
+      inputSearch.value = activeFilter.search;
+      if (btnClearSearch) btnClearSearch.style.display = 'inline-flex';
+      if (headerSearchWrap) headerSearchWrap.classList.add('has-value');
+    }
+
     inputSearch.addEventListener('input', (e) => {
       activeFilter.search = e.target.value;
+      saveFilterState();
       if (btnClearSearch) {
         btnClearSearch.style.display = activeFilter.search ? 'inline-flex' : 'none';
       }
@@ -355,6 +400,7 @@ async function init() {
     btnClearSearch.addEventListener('click', () => {
       if (inputSearch) inputSearch.value = '';
       activeFilter.search = '';
+      saveFilterState();
       btnClearSearch.style.display = 'none';
       if (headerSearchWrap) {
         headerSearchWrap.classList.remove('has-value');
@@ -375,13 +421,15 @@ async function init() {
   const iconCompactMode = document.getElementById('icon-compact-mode');
   const labelCompactMode = document.getElementById('label-compact-mode');
 
-  // Default mode: compact mode is TRUE
+  // Set initial labels & active class based on restored isCompactMode
   if (labelCompactMode) labelCompactMode.textContent = isCompactMode ? 'Detail' : 'Ringkas';
   if (iconCompactMode) iconCompactMode.textContent = isCompactMode ? '📖' : '📁';
+  if (btnToggleCompact) btnToggleCompact.classList.toggle('active', !isCompactMode);
 
   if (btnToggleCompact) {
     btnToggleCompact.addEventListener('click', () => {
       isCompactMode = !isCompactMode;
+      localStorage.setItem('ticket_compact_mode', isCompactMode ? 'true' : 'false');
       expandedTicketIds.clear();
       collapsedTicketIds.clear();
 
@@ -470,6 +518,7 @@ async function init() {
       const tabBtn = e.target.closest('.btn-group-tab[data-group]');
       if (tabBtn) {
         activeFilter.group = tabBtn.dataset.group;
+        saveFilterState();
         renderGroupTabs(customGroups, activeFilter.group, tickets);
         renderCurrentView();
         updateStats(getGroupTickets());
@@ -480,8 +529,10 @@ async function init() {
 
   // Filter buttons (Status)
   document.querySelectorAll('[data-filter-status]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.filterStatus === activeFilter.status);
     btn.addEventListener('click', () => {
       activeFilter.status = btn.dataset.filterStatus;
+      saveFilterState();
       document.querySelectorAll('[data-filter-status]').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       renderCurrentView();
@@ -490,8 +541,10 @@ async function init() {
 
   // Filter buttons (Tier)
   document.querySelectorAll('[data-filter-tier]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.filterTier === activeFilter.tier);
     btn.addEventListener('click', () => {
       activeFilter.tier = btn.dataset.filterTier;
+      saveFilterState();
       document.querySelectorAll('[data-filter-tier]').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       renderCurrentView();
@@ -500,8 +553,10 @@ async function init() {
 
   // Filter buttons (Optical Condition)
   document.querySelectorAll('[data-filter-optical]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.filterOptical === activeFilter.optical);
     btn.addEventListener('click', () => {
       activeFilter.optical = btn.dataset.filterOptical;
+      saveFilterState();
       document.querySelectorAll('[data-filter-optical]').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       renderCurrentView();
@@ -514,6 +569,7 @@ async function init() {
     sortSelect.value = activeFilter.sort;
     sortSelect.addEventListener('change', (e) => {
       activeFilter.sort = e.target.value;
+      saveFilterState();
       renderCurrentView();
     });
   }
@@ -571,35 +627,45 @@ function handleRealtimeChange({ eventType, old: oldRow, new: newRow }) {
 // ─── Event delegation ─────────────────────────────────────────────────────────
 async function handleClick(e) {
   // Toggle rincian kartu (collapse / expand per card)
-  const expandBtn = e.target.closest('[data-action="toggle-card-collapse"]');
-  if (expandBtn) {
-    const id = expandBtn.dataset.id;
-    const card = expandBtn.closest('.ticket-card');
+  const expandTarget = e.target.closest('[data-action="toggle-card-collapse"]');
+  if (expandTarget) {
+    const id = expandTarget.dataset.id;
+    const card = expandTarget.closest('.ticket-card');
     if (!id || !card) return;
+
+    const btnEl = card.querySelector('.btn-card-expand');
 
     if (isCompactMode) {
       if (expandedTicketIds.has(id)) {
         expandedTicketIds.delete(id);
         card.classList.add('is-collapsed');
-        expandBtn.textContent = '▼';
-        expandBtn.title = 'Lihat rincian';
+        if (btnEl) {
+          btnEl.textContent = '▼';
+          btnEl.title = 'Lihat rincian';
+        }
       } else {
         expandedTicketIds.add(id);
         card.classList.remove('is-collapsed');
-        expandBtn.textContent = '▲';
-        expandBtn.title = 'Sembunyikan rincian';
+        if (btnEl) {
+          btnEl.textContent = '▲';
+          btnEl.title = 'Sembunyikan rincian';
+        }
       }
     } else {
       if (collapsedTicketIds.has(id)) {
         collapsedTicketIds.delete(id);
         card.classList.remove('is-collapsed');
-        expandBtn.textContent = '▲';
-        expandBtn.title = 'Sembunyikan rincian';
+        if (btnEl) {
+          btnEl.textContent = '▲';
+          btnEl.title = 'Sembunyikan rincian';
+        }
       } else {
         collapsedTicketIds.add(id);
         card.classList.add('is-collapsed');
-        expandBtn.textContent = '▼';
-        expandBtn.title = 'Lihat rincian';
+        if (btnEl) {
+          btnEl.textContent = '▼';
+          btnEl.title = 'Lihat rincian';
+        }
       }
     }
     return;
@@ -1710,6 +1776,7 @@ function handleDeleteGroup(groupName) {
 
   if (activeFilter.group === groupName) {
     activeFilter.group = 'all';
+    saveFilterState();
   }
 
   renderGroupTabs(customGroups, activeFilter.group, tickets);
