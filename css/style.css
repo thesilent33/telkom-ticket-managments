@@ -738,6 +738,58 @@ body.batch-mode-active .card-batch-select {
   background: rgba(255, 255, 255, 0.15);
 }
 
+@media (max-width: 640px) {
+  .batch-action-bar {
+    width: calc(100% - 16px);
+    max-width: calc(100vw - 16px);
+    bottom: 12px;
+    padding: 6px 8px 6px 12px;
+    gap: 6px;
+    border-radius: 999px;
+  }
+  .batch-bar-left {
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .btn-batch-select-all {
+    padding: 4px 8px;
+    font-size: 0.72rem;
+    gap: 3px;
+  }
+  .batch-selected-count {
+    font-size: 0.75rem;
+    color: #e2e8f0;
+    font-weight: 600;
+  }
+  .batch-bar-right {
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  .btn-batch-action {
+    padding: 5px 8px;
+    font-size: 0.72rem;
+    gap: 3px;
+  }
+  .btn-batch-cancel {
+    padding: 3px 5px;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+  }
+}
+
+@media (max-width: 360px) {
+  .batch-action-bar {
+    padding: 4px 6px 4px 8px;
+    gap: 3px;
+  }
+  .btn-batch-select-all {
+    padding: 3px 6px;
+  }
+  .btn-batch-action {
+    padding: 4px 6px;
+  }
+}
+
 /* ── Tickets container ───────────────────────────────────────────── */
 #tickets-container {
   padding: 16px;

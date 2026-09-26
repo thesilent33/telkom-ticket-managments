@@ -176,7 +176,7 @@ function updateBatchActionBar() {
 
   const countSelected = selectedBatchIds.size;
   const countEl = document.getElementById('batch-selected-count');
-  if (countEl) countEl.textContent = `${countSelected} dipilih`;
+  if (countEl) countEl.innerHTML = `${countSelected}<span class="hide-mobile"> dipilih</span>`;
 
   const btnUkur = document.getElementById('btn-batch-ukur');
   const countUkurEl = document.getElementById('batch-count-ukur');
@@ -196,7 +196,11 @@ function updateBatchActionBar() {
   const allVisibleSelected = visibleTickets.length > 0 && visibleTickets.every(t => selectedBatchIds.has(t.id));
   const selectAllText = document.getElementById('batch-select-all-text');
   const selectAllIcon = document.getElementById('batch-select-all-icon');
-  if (selectAllText) selectAllText.textContent = allVisibleSelected ? 'Batalkan Semua' : 'Pilih Semua';
+  if (selectAllText) {
+    selectAllText.innerHTML = allVisibleSelected
+      ? '<span class="hide-mobile">Batalkan </span>Batal'
+      : '<span class="hide-mobile">Pilih </span>Semua';
+  }
   if (selectAllIcon) selectAllIcon.textContent = allVisibleSelected ? '⬜' : '☑️';
 }
 
@@ -629,8 +633,53 @@ async function handleAddTicket() {
     return;
   }
 
+  // Cek duplikasi terhadap tiket yang masih aktif (status 'open' atau 'kendala')
+  const activeTickets = tickets.filter(t => t.status !== 'done');
+  const validTickets = [];
+  const duplicateTickets = [];
+  const seenInInput = new Set();
+
+  for (const t of parsed) {
+    const incKey = t.inc ? t.inc.trim().toUpperCase() : null;
+    const inetKey = t.inet ? t.inet.trim() : null;
+
+    // Cek duplikat dalam batch input yang sama
+    const inputKey = incKey || inetKey;
+    if (inputKey && seenInInput.has(inputKey)) {
+      duplicateTickets.push({ ticket: t, label: incKey || inetKey, status: 'input ganda' });
+      continue;
+    }
+    if (inputKey) seenInInput.add(inputKey);
+
+    // Cek duplikat terhadap tiket aktif di sistem
+    const existing = activeTickets.find(x => {
+      const matchInc = incKey && x.inc && x.inc.trim().toUpperCase() === incKey;
+      const matchInet = inetKey && x.inet && x.inet.trim() === inetKey;
+      return matchInc || matchInet;
+    });
+
+    if (existing) {
+      const label = incKey || inetKey || 'Tiket';
+      duplicateTickets.push({ ticket: t, label, status: existing.status });
+    } else {
+      validTickets.push(t);
+    }
+  }
+
+  // Jika semua tiket yang dimasukkan sudah ada di sistem
+  if (validTickets.length === 0) {
+    if (duplicateTickets.length === 1) {
+      const dupe = duplicateTickets[0];
+      showToast(`⚠️ Tiket ${dupe.label} sudah ada di sistem (Status: ${dupe.status})!`, 'warning');
+    } else {
+      const labels = duplicateTickets.map(d => d.label).slice(0, 3).join(', ');
+      showToast(`⚠️ Semua tiket (${duplicateTickets.length}) sudah ada di sistem (${labels})!`, 'warning');
+    }
+    return;
+  }
+
   try {
-    const inserted = await addTickets(parsed);
+    const inserted = await addTickets(validTickets);
     if (inserted) {
       const selectedGroups = result.groups || [];
       for (const t of inserted) {
@@ -650,7 +699,13 @@ async function handleAddTicket() {
     const groupNote = (result.groups && result.groups.length > 0)
       ? ` (ke grup: ${result.groups.join(', ')})`
       : '';
-    showToast(`✅ ${parsed.length} tiket berhasil ditambahkan${groupNote}!`, 'success');
+
+    if (duplicateTickets.length > 0) {
+      const dupeLabels = duplicateTickets.map(d => d.label).join(', ');
+      showToast(`✅ ${validTickets.length} tiket ditambahkan${groupNote}. ⚠️ ${duplicateTickets.length} tiket dilewati karena sudah ada: ${dupeLabels}`, 'warning');
+    } else {
+      showToast(`✅ ${validTickets.length} tiket berhasil ditambahkan${groupNote}!`, 'success');
+    }
   } catch (err) {
     console.error(err);
     showToast('❌ Gagal menyimpan tiket. Cek koneksi & konfigurasi Supabase.', 'error');

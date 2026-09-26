@@ -171,16 +171,16 @@
   <div class="batch-bar-left">
     <button class="btn-batch-select-all" id="btn-batch-select-all" title="Pilih semua / Batalkan semua">
       <span id="batch-select-all-icon">☑️</span>
-      <span id="batch-select-all-text">Pilih Semua</span>
+      <span id="batch-select-all-text"><span class="hide-mobile">Pilih </span>Semua</span>
     </button>
-    <span class="batch-selected-count" id="batch-selected-count">0 dipilih</span>
+    <span class="batch-selected-count" id="batch-selected-count">0<span class="hide-mobile"> dipilih</span></span>
   </div>
   <div class="batch-bar-right">
     <button class="btn-batch-action btn-batch-ukur" id="btn-batch-ukur" disabled title="Ukur tiket yang dipilih">
-      <span>📡</span> Ukur (<span id="batch-count-ukur">0</span>)
+      <span>📡</span> <span class="hide-mobile">Ukur </span>(<span id="batch-count-ukur">0</span>)
     </button>
     <button class="btn-batch-action btn-batch-delete" id="btn-batch-delete" disabled title="Hapus tiket yang dipilih">
-      <span>🗑️</span> Hapus (<span id="batch-count-delete">0</span>)
+      <span>🗑️</span> <span class="hide-mobile">Hapus </span>(<span id="batch-count-delete">0</span>)
     </button>
     <button class="btn-batch-cancel" id="btn-batch-cancel" title="Tutup mode pilih">
       ✕
