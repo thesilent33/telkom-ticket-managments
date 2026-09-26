@@ -544,15 +544,84 @@ function handleInput(e) {
 
 // ─── Action: Tambah Tiket ─────────────────────────────────────────────────────
 async function handleAddTicket() {
-  const result = await showInputModal(modalAddTicket(), {
+  const result = await showInputModal(modalAddTicket(customGroups, activeFilter.group), {
     confirmLabel: '✅ Tambah Tiket',
     getValues: () => {
       const raw = document.getElementById('input-paste')?.value ?? '';
-      return { raw };
+      const pending = document.getElementById('input-modal-add-group')?.value.trim();
+      if (pending && !customGroups.includes(pending)) {
+        customGroups.push(pending);
+        saveCustomGroups();
+        renderGroupTabs(customGroups, activeFilter.group, tickets);
+      }
+
+      const checked = Array.from(document.querySelectorAll('input[name="add-ticket-group-check"]:checked'))
+        .map(el => el.value.trim())
+        .filter(Boolean);
+
+      if (pending && !checked.includes(pending)) {
+        checked.push(pending);
+      }
+
+      return { raw, groups: checked };
     },
+    onMount: () => {
+      const groupList = document.getElementById('modal-add-group-list');
+      const btnAddGroup = document.getElementById('btn-modal-add-group');
+      const inputAddGroup = document.getElementById('input-modal-add-group');
+
+      const setupToggle = (item) => {
+        item.addEventListener('change', () => {
+          const chk = item.querySelector('input[type="checkbox"]');
+          if (chk) item.classList.toggle('checked', chk.checked);
+        });
+      };
+
+      document.querySelectorAll('#modal-add-group-list .group-select-item').forEach(setupToggle);
+
+      const addGroupItem = (name) => {
+        const trimmed = name.trim();
+        if (!trimmed) return;
+        if (!customGroups.includes(trimmed)) {
+          customGroups.push(trimmed);
+          saveCustomGroups();
+          renderGroupTabs(customGroups, activeFilter.group, tickets);
+        }
+
+        const emptyMsg = document.getElementById('modal-add-group-empty');
+        if (emptyMsg) emptyMsg.style.display = 'none';
+
+        const existing = groupList?.querySelector(`.group-select-item[data-group-name="${trimmed}"]`);
+        if (existing) {
+          const chk = existing.querySelector('input[type="checkbox"]');
+          if (chk) chk.checked = true;
+          existing.classList.add('checked');
+          existing.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        } else if (groupList) {
+          const label = document.createElement('label');
+          label.className = 'group-select-item checked';
+          label.dataset.groupName = trimmed;
+          label.innerHTML = `<span>📁 <b>${trimmed}</b></span><input type="checkbox" name="add-ticket-group-check" value="${trimmed}" checked>`;
+          setupToggle(label);
+          groupList.appendChild(label);
+          label.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+        if (inputAddGroup) inputAddGroup.value = '';
+      };
+
+      if (btnAddGroup && inputAddGroup) {
+        btnAddGroup.addEventListener('click', () => addGroupItem(inputAddGroup.value));
+        inputAddGroup.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            addGroupItem(inputAddGroup.value);
+          }
+        });
+      }
+    }
   });
 
-  if (!result) return;
+  if (!result || !result.raw.trim()) return;
 
   const parsed = parseTickets(result.raw);
   if (!parsed.length) {
@@ -563,15 +632,25 @@ async function handleAddTicket() {
   try {
     const inserted = await addTickets(parsed);
     if (inserted) {
-      inserted.forEach(t => {
+      const selectedGroups = result.groups || [];
+      for (const t of inserted) {
+        t.groups = [...selectedGroups];
         if (!tickets.find(x => x.id === t.id)) {
           tickets.push(t);
         }
-      });
+        if (selectedGroups.length > 0) {
+          await saveTicketGroups(t.id, selectedGroups);
+        }
+      }
+      renderGroupTabs(customGroups, activeFilter.group, tickets);
       renderCurrentView();
       updateStats(getGroupTickets());
+      updateUkurAllButton();
     }
-    showToast(`✅ ${parsed.length} tiket berhasil ditambahkan!`, 'success');
+    const groupNote = (result.groups && result.groups.length > 0)
+      ? ` (ke grup: ${result.groups.join(', ')})`
+      : '';
+    showToast(`✅ ${parsed.length} tiket berhasil ditambahkan${groupNote}!`, 'success');
   } catch (err) {
     console.error(err);
     showToast('❌ Gagal menyimpan tiket. Cek koneksi & konfigurasi Supabase.', 'error');
@@ -1236,16 +1315,14 @@ async function handleManageGroups(ticket) {
   });
 
   // Interaksi checklist di dalam modal
-  document.querySelectorAll('.group-select-item').forEach(item => {
-    item.addEventListener('click', (e) => {
-      if (e.target.tagName !== 'INPUT') {
-        const chk = item.querySelector('input[type="checkbox"]');
-        if (chk) chk.checked = !chk.checked;
-      }
+  const setupToggle = (item) => {
+    item.addEventListener('change', () => {
       const chk = item.querySelector('input[type="checkbox"]');
       if (chk) item.classList.toggle('checked', chk.checked);
     });
-  });
+  };
+
+  document.querySelectorAll('.group-select-item').forEach(setupToggle);
 
   // Tombol tambah grup cepat di dalam modal
   const btnQuickAdd = document.getElementById('btn-quick-create-group');
@@ -1262,19 +1339,16 @@ async function handleManageGroups(ticket) {
     }
 
     const existing = document.querySelector(`.group-select-item[data-group-name="${trimmed}"]`);
-    if (!existing && groupList) {
+    if (existing) {
+      const chk = existing.querySelector('input[type="checkbox"]');
+      if (chk) chk.checked = true;
+      existing.classList.add('checked');
+    } else if (groupList) {
       const label = document.createElement('label');
       label.className = 'group-select-item checked';
       label.dataset.groupName = trimmed;
       label.innerHTML = `<span>📁 <b>${trimmed}</b></span><input type="checkbox" name="ticket-group-check" value="${trimmed}" checked>`;
-      label.addEventListener('click', (e) => {
-        if (e.target.tagName !== 'INPUT') {
-          const chk = label.querySelector('input[type="checkbox"]');
-          if (chk) chk.checked = !chk.checked;
-        }
-        const chk = label.querySelector('input[type="checkbox"]');
-        if (chk) label.classList.toggle('checked', chk.checked);
-      });
+      setupToggle(label);
       groupList.appendChild(label);
     }
     inputNewGroup.value = '';

@@ -610,7 +610,7 @@ function showModal(html, { onConfirm, confirmLabel = 'OK', cancelLabel = 'Batal'
   overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); }, { once: true });
 }
 
-function showInputModal(html, { confirmLabel = 'Simpan', cancelLabel = 'Batal', getValues, dangerous = false } = {}) {
+function showInputModal(html, { confirmLabel = 'Simpan', cancelLabel = 'Batal', getValues, dangerous = false, onMount } = {}) {
   return new Promise((resolve) => {
     showModal(html, {
       confirmLabel,
@@ -621,6 +621,9 @@ function showInputModal(html, { confirmLabel = 'Simpan', cancelLabel = 'Batal', 
         resolve(vals);
       },
     });
+    if (typeof onMount === 'function') {
+      try { onMount(); } catch (err) { console.error(err); }
+    }
     // Resolve null on cancel/close
     document.getElementById('modal-cancel').addEventListener('click', () => resolve(null), { once: true });
     document.getElementById('modal-overlay').addEventListener('click', (e) => {
@@ -631,19 +634,45 @@ function showInputModal(html, { confirmLabel = 'Simpan', cancelLabel = 'Batal', 
 
 // ─── Modal: Add Ticket ────────────────────────────────────────────────────────
 
-function modalAddTicket() {
+function modalAddTicket(allGroups = [], defaultGroup = 'all') {
+  const groupItemsHtml = allGroups.length === 0
+    ? `<div id="modal-add-group-empty" style="color: #94a3b8; font-size: 0.82rem; padding: 6px 0; text-align: center;">Belum ada grup. Ketik nama grup baru di bawah jika ingin mengelompokkan tiket ini.</div>`
+    : allGroups.map(g => {
+        const isChecked = (defaultGroup && defaultGroup !== 'all' && g === defaultGroup);
+        return `
+          <label class="group-select-item ${isChecked ? 'checked' : ''}" data-group-name="${g}">
+            <span>📁 <b>${g}</b></span>
+            <input type="checkbox" name="add-ticket-group-check" value="${g}" ${isChecked ? 'checked' : ''}>
+          </label>
+        `;
+      }).join('');
+
   return `
     <h3 class="modal-title">➕ Tambah Tiket</h3>
     <div class="modal-section">
       <label class="modal-label">Paste teks tiket (WO / format singkat)</label>
-      <textarea id="input-paste" class="modal-textarea" rows="7"
+      <textarea id="input-paste" class="modal-textarea" rows="6"
         placeholder="📢 NEW WO&#10;HVC_GOLD&#10;...&#10;atau: INC53364888 | 172418214868 | HVC_GOLD | ODP-UBN-FDP/79"></textarea>
     </div>
     <div id="parse-preview" class="parse-preview" style="display:none">
       <div class="preview-title">✨ Hasil parse:</div>
       <div class="preview-grid" id="preview-fields"></div>
     </div>
-    <p class="modal-hint">💡 Anda juga bisa paste beberapa tiket sekaligus (satu per baris)</p>`;
+    <p class="modal-hint" style="margin-bottom: 12px;">💡 Anda juga bisa paste beberapa tiket sekaligus (satu per baris)</p>
+
+    <div class="modal-section" style="border-top: 1px solid #f1f5f9; padding-top: 12px;">
+      <label class="modal-label" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+        <span>📁 Masukkan ke Grup / Folder <span class="optional">(opsional)</span></span>
+      </label>
+      <div style="font-size: 0.8rem; color: #64748b; margin-bottom: 8px;">Pilih satu atau lebih grup untuk tiket baru:</div>
+      <div class="group-select-list" id="modal-add-group-list" style="max-height: 130px; margin: 4px 0 8px;">
+        ${groupItemsHtml}
+      </div>
+      <div class="group-create-row" style="margin-top: 6px;">
+        <input type="text" id="input-modal-add-group" placeholder="+ Buat grup baru..." maxlength="30">
+        <button type="button" id="btn-modal-add-group">Tambah</button>
+      </div>
+    </div>`;
 }
 
 // ─── Modal: Done ──────────────────────────────────────────────────────────────
