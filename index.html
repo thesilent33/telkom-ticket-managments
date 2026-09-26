@@ -75,6 +75,28 @@
     </div>
   </div>
 
+  <!-- ── Optical Status Bar (Sub-Bar Chips LOS / SPEC / UNSPEC) ─────── -->
+  <div class="optical-bar" id="optical-bar" role="tablist" aria-label="Filter kondisi optik">
+    <div class="optical-tabs-scroll" id="optical-tabs-scroll">
+      <span class="optical-bar-label">Optik:</span>
+      <button class="btn-optical-chip active" data-filter-optical="all">
+        Semua <span class="optical-count" id="count-opt-all">0</span>
+      </button>
+      <button class="btn-optical-chip chip-los" data-filter-optical="los">
+        🔴 LOS <span class="optical-count" id="count-opt-los">0</span>
+      </button>
+      <button class="btn-optical-chip chip-unspec" data-filter-optical="unspec">
+        ⚠️ UNSPEC <span class="optical-count" id="count-opt-unspec">0</span>
+      </button>
+      <button class="btn-optical-chip chip-spec" data-filter-optical="spec">
+        🟢 SPEC <span class="optical-count" id="count-opt-spec">0</span>
+      </button>
+      <button class="btn-optical-chip chip-unmeasured" data-filter-optical="unmeasured">
+        ⚪ Belum Diukur <span class="optical-count" id="count-opt-unmeasured">0</span>
+      </button>
+    </div>
+  </div>
+
   <!-- ── Filter Bar ────────────────────────────────────────────────── -->
   <div class="filter-bar" role="tablist" aria-label="Filter tiket">
 

@@ -804,6 +804,27 @@ function updateStats(tickets) {
     const el = document.getElementById(`count-tier-${k}`);
     if (el) el.textContent = tierCounts[k];
   });
+
+  // Optical condition counts
+  const optCounts = {
+    all: tickets.length,
+    los: 0,
+    unspec: 0,
+    spec: 0,
+    unmeasured: 0
+  };
+  tickets.forEach(t => {
+    const st = getCompactRedamanStatus(t);
+    if (st.type === 'los') optCounts.los++;
+    else if (st.type === 'unspec') optCounts.unspec++;
+    else if (st.type === 'online') optCounts.spec++;
+    else optCounts.unmeasured++;
+  });
+
+  ['all', 'los', 'unspec', 'spec', 'unmeasured'].forEach(k => {
+    const el = document.getElementById(`count-opt-${k}`);
+    if (el) el.textContent = optCounts[k];
+  });
 }
 
 // ─── Group Tabs Rendering ─────────────────────────────────────────────────────

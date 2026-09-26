@@ -349,6 +349,119 @@ code {
   background: rgba(79, 70, 229, 0.05);
 }
 
+/* ── Optical Bar (Sub-bar Chips) ─────────────────────────────────── */
+.optical-bar {
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 5px 16px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.optical-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.optical-tabs-scroll {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: max-content;
+}
+
+.optical-bar-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-right: 2px;
+}
+
+.btn-optical-chip {
+  background: white;
+  border: 1.5px solid #cbd5e1;
+  color: #475569;
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: var(--transition);
+  white-space: nowrap;
+  height: 26px;
+  box-sizing: border-box;
+}
+
+.btn-optical-chip:hover {
+  border-color: #94a3b8;
+  background: #f1f5f9;
+}
+
+.optical-count {
+  background: rgba(0, 0, 0, 0.07);
+  border-radius: 999px;
+  padding: 0 5px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.btn-optical-chip.active {
+  background: #4f46e5;
+  border-color: #4f46e5;
+  color: white;
+  box-shadow: 0 2px 5px rgba(79, 70, 229, 0.25);
+}
+
+.btn-optical-chip.active .optical-count {
+  background: rgba(255, 255, 255, 0.28);
+  color: white;
+}
+
+.btn-optical-chip.chip-los.active {
+  background: #ef4444;
+  border-color: #ef4444;
+  color: white;
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.35);
+}
+
+.btn-optical-chip.chip-unspec.active {
+  background: #f59e0b;
+  border-color: #d97706;
+  color: white;
+  box-shadow: 0 2px 6px rgba(245, 158, 11, 0.35);
+}
+
+.btn-optical-chip.chip-spec.active {
+  background: #10b981;
+  border-color: #059669;
+  color: white;
+  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.35);
+}
+
+.btn-optical-chip.chip-unmeasured.active {
+  background: #64748b;
+  border-color: #475569;
+  color: white;
+  box-shadow: 0 2px 6px rgba(100, 116, 139, 0.35);
+}
+
+@media (max-width: 640px) {
+  .optical-bar {
+    padding: 4px 12px;
+  }
+  .btn-optical-chip {
+    padding: 2px 8px;
+    font-size: 0.72rem;
+    height: 24px;
+    gap: 4px;
+  }
+}
+
 /* ── Filter bar ──────────────────────────────────────────────────── */
 .filter-bar {
   background: white;

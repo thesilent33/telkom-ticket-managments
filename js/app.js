@@ -11,11 +11,12 @@ import {
   modalAddTicket, modalDone, modalKendala, modalRekap,
   modalManageGroups, renderGroupTabs,
   updateAllTimers, updateStats, saveTechnicianName,
+  getCompactRedamanStatus,
 } from './ui.js';
 
 // ─── State ────────────────────────────────────────────────────────────────────
 let tickets           = [];   // array of ticket objects (local cache)
-let activeFilter      = { status: 'all', tier: 'all', sort: 'ttr_desc', group: 'all', search: '' };
+let activeFilter      = { status: 'all', tier: 'all', optical: 'all', sort: 'ttr_desc', group: 'all', search: '' };
 let customGroups      = [];   // array nama grup kustom
 let isMeasuringAll    = false;
 let abortMeasuringAll = false;
@@ -125,6 +126,16 @@ function getFilteredTickets() {
   }
   if (activeFilter.tier && activeFilter.tier !== 'all') {
     list = list.filter(t => t.tier === activeFilter.tier);
+  }
+  if (activeFilter.optical && activeFilter.optical !== 'all') {
+    list = list.filter(t => {
+      const opt = getCompactRedamanStatus(t);
+      if (activeFilter.optical === 'los') return opt.type === 'los';
+      if (activeFilter.optical === 'unspec') return opt.type === 'unspec';
+      if (activeFilter.optical === 'spec') return opt.type === 'online';
+      if (activeFilter.optical === 'unmeasured') return opt.type === 'unmeasured';
+      return true;
+    });
   }
   if (activeFilter.search && activeFilter.search.trim()) {
     const q = activeFilter.search.trim().toLowerCase();
@@ -418,6 +429,16 @@ async function init() {
     btn.addEventListener('click', () => {
       activeFilter.tier = btn.dataset.filterTier;
       document.querySelectorAll('[data-filter-tier]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderCurrentView();
+    });
+  });
+
+  // Filter buttons (Optical Condition)
+  document.querySelectorAll('[data-filter-optical]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeFilter.optical = btn.dataset.filterOptical;
+      document.querySelectorAll('[data-filter-optical]').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       renderCurrentView();
     });
