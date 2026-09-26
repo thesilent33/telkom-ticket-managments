@@ -150,6 +150,15 @@ function getCompactRedamanStatus(ticket) {
   const onuStatus = (ticket.onu_status || '').toUpperCase();
   const rawText = `${ticket.raw_input || ''} ${ticket.rest || ''} ${ticket.gangguan || ''} ${ticket.result_text || ''}`.toUpperCase();
 
+  // 2.5 Cek status jika user internet tidak ditemukan
+  if (onuStatus.includes('TIDAK DITEMUKAN') || onuStatus.includes('BELUM TERDAFTAR') || rawText.includes('TIDAK MENEMUKAN POSISI PERANGKAT')) {
+    return {
+      type: 'unspec',
+      text: 'St: Tidak Ditemukan ⚠️',
+      badgeClass: 'status-unspec',
+    };
+  }
+
   // 3. Cek LOS / Offline / Putus terlebih dahulu
   if (
     onuStatus.includes('LOS') ||
@@ -556,12 +565,21 @@ function setUkurLoading(id, loading) {
   const btn = document.querySelector(`[data-action="ukur"][data-id="${id}"]`);
   if (!btn) return;
   if (loading) {
+    if (!btn.dataset.prevHtml) {
+      btn.dataset.prevHtml = btn.innerHTML;
+    }
     btn.disabled = true;
     btn.textContent = '⏳ Mengukur...';
     btn.classList.add('loading');
   } else {
     btn.disabled = false;
     btn.classList.remove('loading');
+    if (btn.dataset.prevHtml) {
+      btn.innerHTML = btn.dataset.prevHtml;
+      delete btn.dataset.prevHtml;
+    } else {
+      btn.innerHTML = '📶 Ukur';
+    }
   }
 }
 
@@ -784,26 +802,54 @@ function updateAllTimers(allTickets = []) {
 
 // ─── Update filter stats ──────────────────────────────────────────────────────
 
-function updateStats(tickets) {
-  // Status counts
-  const counts = { all: tickets.length, open: 0, done: 0, kendala: 0 };
-  tickets.forEach(t => { if (counts[t.status] !== undefined) counts[t.status]++; });
+function updateStats(tickets, filter = {}) {
+  // 1. Status counts (filter by active tier and active optical, if set)
+  let forStatus = tickets;
+  if (filter.tier && filter.tier !== 'all') {
+    forStatus = forStatus.filter(t => t.tier === filter.tier);
+  }
+  if (filter.optical && filter.optical !== 'all') {
+    forStatus = forStatus.filter(t => {
+      const st = getCompactRedamanStatus(t);
+      if (filter.optical === 'los') return st.type === 'los';
+      if (filter.optical === 'unspec') return st.type === 'unspec';
+      if (filter.optical === 'spec') return st.type === 'online';
+      if (filter.optical === 'unmeasured') return st.type === 'unmeasured';
+      return true;
+    });
+  }
+  const counts = { all: forStatus.length, open: 0, done: 0, kendala: 0 };
+  forStatus.forEach(t => { if (counts[t.status] !== undefined) counts[t.status]++; });
 
   ['all', 'open', 'done', 'kendala'].forEach(k => {
     const el = document.getElementById(`count-${k}`);
     if (el) el.textContent = counts[k];
   });
 
-  // Tier counts
+  // 2. Tier counts (filter by active status and active optical, if set)
+  let forTier = tickets;
+  if (filter.status && filter.status !== 'all') {
+    forTier = forTier.filter(t => t.status === filter.status);
+  }
+  if (filter.optical && filter.optical !== 'all') {
+    forTier = forTier.filter(t => {
+      const st = getCompactRedamanStatus(t);
+      if (filter.optical === 'los') return st.type === 'los';
+      if (filter.optical === 'unspec') return st.type === 'unspec';
+      if (filter.optical === 'spec') return st.type === 'online';
+      if (filter.optical === 'unmeasured') return st.type === 'unmeasured';
+      return true;
+    });
+  }
   const tierCounts = {
-    all: tickets.length,
+    all: forTier.length,
     diamond: 0,
     platinum: 0,
     gold: 0,
     indibiz: 0,
     reguler: 0
   };
-  tickets.forEach(t => {
+  forTier.forEach(t => {
     const tr = (t.tier || 'REGULER').toUpperCase();
     if (tr.includes('DIAMOND')) tierCounts.diamond++;
     else if (tr.includes('PLATINUM')) tierCounts.platinum++;
@@ -817,15 +863,22 @@ function updateStats(tickets) {
     if (el) el.textContent = tierCounts[k];
   });
 
-  // Optical condition counts
+  // 3. Optical condition counts (filter by active status and active tier, if set)
+  let forOptical = tickets;
+  if (filter.status && filter.status !== 'all') {
+    forOptical = forOptical.filter(t => t.status === filter.status);
+  }
+  if (filter.tier && filter.tier !== 'all') {
+    forOptical = forOptical.filter(t => t.tier === filter.tier);
+  }
   const optCounts = {
-    all: tickets.length,
+    all: forOptical.length,
     los: 0,
     unspec: 0,
     spec: 0,
     unmeasured: 0
   };
-  tickets.forEach(t => {
+  forOptical.forEach(t => {
     const st = getCompactRedamanStatus(t);
     if (st.type === 'los') optCounts.los++;
     else if (st.type === 'unspec') optCounts.unspec++;

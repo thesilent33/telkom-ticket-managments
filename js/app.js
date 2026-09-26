@@ -46,6 +46,7 @@ function renderCurrentView() {
     isCardCollapsedFn: isCardCollapsed,
   });
   updateUkurAllButton();
+  updateStats(getGroupTickets(), activeFilter);
 }
 
 // ─── Group Storage & Helper ───────────────────────────────────────────────────
@@ -769,6 +770,11 @@ function updateParsePreview(text) {
     </div>`).join('');
 }
 
+function isUserNotFoundMessage(msg) {
+  if (!msg) return false;
+  return /tidak menemukan posisi perangkat|belum terdaftar|posisi perangkat berada di server mana/i.test(String(msg));
+}
+
 // ─── Action: Ukur Redaman (Single) ────────────────────────────────────────────
 async function handleUkur(ticket) {
   if (!ticket?.inet) {
@@ -780,8 +786,33 @@ async function handleUkur(ticket) {
   try {
     const result = await ukurRedaman(ticket.inet);
 
-    if (!result.success) {
-      showToast(`⚠️ ${result.message || 'LENSA tidak merespons. Coba lagi.'}`, 'warning');
+    if (result && isUserNotFoundMessage(result.message || result.error || result.result_text || '')) {
+      const changes = {
+        onu_sn:        null,
+        onu_status:    'User internet tidak ditemukan',
+        onu_rx:        null,
+        olt_rx:        null,
+        onu_rx_status: 'warn',
+        olt_rx_status: 'warn',
+        acs_status:    null,
+        pcrf:          null,
+        gpon:          null,
+        result_text:   `⚠️ <b>User internet tidak ditemukan</b><br><small style="color:#64748b;">${result.message || 'Perangkat tidak ditemukan di server iBooster'}</small>`,
+        redaman_at:    new Date().toISOString(),
+      };
+
+      const updated = await updateTicket(ticket.id, changes);
+      const idx = tickets.findIndex(t => t.id === ticket.id);
+      if (idx !== -1) tickets[idx] = updated;
+      updateCardInPlace(updated);
+      setUkurLoading(ticket.id, false);
+      renderCurrentView();
+      showToast('⚠️ User internet tidak ditemukan di server iBooster.', 'warning');
+      return;
+    }
+
+    if (!result || !result.success) {
+      showToast(`⚠️ ${result?.message || 'LENSA tidak merespons. Coba lagi.'}`, 'warning');
       setUkurLoading(ticket.id, false);
       return;
     }
@@ -805,7 +836,8 @@ async function handleUkur(ticket) {
     const idx = tickets.findIndex(t => t.id === ticket.id);
     if (idx !== -1) tickets[idx] = updated;
     updateCardInPlace(updated);
-    updateBatchActionBar();
+    setUkurLoading(ticket.id, false);
+    renderCurrentView();
     showToast('📡 Hasil ukur berhasil diperbarui!', 'success');
   } catch (err) {
     console.error(err);
@@ -1028,7 +1060,26 @@ async function handleBatchUkur() {
 
         try {
           const result = await ukurRedaman(t.inet);
-          if (result && result.success) {
+          if (result && isUserNotFoundMessage(result.message || result.error || result.result_text || '')) {
+            const changes = {
+              onu_sn:        null,
+              onu_status:    'User internet tidak ditemukan',
+              onu_rx:        null,
+              olt_rx:        null,
+              onu_rx_status: 'warn',
+              olt_rx_status: 'warn',
+              acs_status:    null,
+              pcrf:          null,
+              gpon:          null,
+              result_text:   `⚠️ <b>User internet tidak ditemukan</b><br><small style="color:#64748b;">${result.message || 'Perangkat tidak ditemukan di server iBooster'}</small>`,
+              redaman_at:    new Date().toISOString(),
+            };
+            const updated = await updateTicket(t.id, changes);
+            const idx = tickets.findIndex(x => x.id === t.id);
+            if (idx !== -1) tickets[idx] = updated;
+            updateCardInPlace(updated);
+            successCount++;
+          } else if (result && result.success) {
             const changes = {
               onu_sn:        result.onu_sn        ?? null,
               onu_status:    result.onu_status    ?? null,
@@ -1189,7 +1240,26 @@ async function handleUkurSemua() {
 
         try {
           const result = await ukurRedaman(t.inet);
-          if (result && result.success) {
+          if (result && isUserNotFoundMessage(result.message || result.error || result.result_text || '')) {
+            const changes = {
+              onu_sn:        null,
+              onu_status:    'User internet tidak ditemukan',
+              onu_rx:        null,
+              olt_rx:        null,
+              onu_rx_status: 'warn',
+              olt_rx_status: 'warn',
+              acs_status:    null,
+              pcrf:          null,
+              gpon:          null,
+              result_text:   `⚠️ <b>User internet tidak ditemukan</b><br><small style="color:#64748b;">${result.message || 'Perangkat tidak ditemukan di server iBooster'}</small>`,
+              redaman_at:    new Date().toISOString(),
+            };
+            const updated = await updateTicket(t.id, changes);
+            const idx = tickets.findIndex(x => x.id === t.id);
+            if (idx !== -1) tickets[idx] = updated;
+            updateCardInPlace(updated);
+            successCount++;
+          } else if (result && result.success) {
             const changes = {
               onu_sn:        result.onu_sn        ?? null,
               onu_status:    result.onu_status    ?? null,
