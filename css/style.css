@@ -81,7 +81,8 @@ code {
 
 .header-brand {
   min-width: 0;
-  flex-shrink: 1;
+  flex: 1 1 auto;
+  overflow: hidden;
 }
 
 .app-title {
@@ -92,6 +93,15 @@ code {
   align-items: center;
   gap: 6px;
   white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.app-title-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .app-subtitle {
@@ -99,6 +109,9 @@ code {
   opacity: 0.85;
   margin-top: 1px;
   white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .header-actions {
@@ -106,6 +119,7 @@ code {
   align-items: center;
   gap: 6px;
   flex-shrink: 0;
+  flex-wrap: nowrap;
 }
 
 .btn-header-batch {
@@ -179,7 +193,8 @@ code {
   border-color: rgba(255, 255, 255, 0.45);
 }
 
-.header-search-wrap:focus-within {
+.header-search-wrap:focus-within,
+.header-search-wrap.has-value {
   background: rgba(255, 255, 255, 0.28);
   border-color: rgba(255, 255, 255, 0.6);
   width: 190px;
@@ -211,6 +226,25 @@ code {
 
 .header-input-search::-webkit-search-cancel-button {
   display: none;
+}
+
+.btn-clear-search {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.72rem;
+  cursor: pointer;
+  padding: 0 3px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  transition: color 0.15s;
+  flex-shrink: 0;
+}
+
+.btn-clear-search:hover {
+  color: #fff;
 }
 
 .btn-add-header {
@@ -250,17 +284,64 @@ code {
     font-size: 0.74rem;
     gap: 3px;
   }
+  .header-search-wrap {
+    width: 76px;
+    padding: 2px 6px 2px 8px;
+  }
+  .header-search-wrap:focus-within,
+  .header-search-wrap.has-value {
+    width: 115px;
+  }
+  .header-input-search {
+    font-size: 0.74rem;
+  }
+  .header-search-icon {
+    font-size: 0.75rem;
+    margin-right: 3px;
+  }
   .hide-mobile {
     display: none !important;
   }
 }
 
-@media (max-width: 375px) {
-  .app-title-text {
+@media (max-width: 420px) {
+  .btn-header-batch .btn-label {
     display: none;
   }
-  .app-title::after {
-    content: 'Tickets';
+  .btn-header-batch {
+    padding: 5px 8px;
+  }
+  .header-search-wrap {
+    width: 70px;
+  }
+  .header-search-wrap:focus-within,
+  .header-search-wrap.has-value {
+    width: 105px;
+  }
+}
+
+@media (max-width: 360px) {
+  .app-header {
+    padding: 6px 8px;
+    gap: 4px;
+  }
+  .app-title {
+    font-size: 0.88rem;
+  }
+  .app-subtitle {
+    font-size: 0.62rem;
+  }
+  .btn-ukur-all-header {
+    padding: 5px 6px;
+    font-size: 0.72rem;
+  }
+  .header-search-wrap {
+    width: 64px;
+    padding: 2px 4px 2px 6px;
+  }
+  .header-search-wrap:focus-within,
+  .header-search-wrap.has-value {
+    width: 98px;
   }
 }
 

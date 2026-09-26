@@ -338,11 +338,15 @@ async function init() {
   // Search input & clear button
   const inputSearch = document.getElementById('input-search');
   const btnClearSearch = document.getElementById('btn-clear-search');
+  const headerSearchWrap = document.getElementById('header-search-wrap');
   if (inputSearch) {
     inputSearch.addEventListener('input', (e) => {
       activeFilter.search = e.target.value;
       if (btnClearSearch) {
         btnClearSearch.style.display = activeFilter.search ? 'inline-flex' : 'none';
+      }
+      if (headerSearchWrap) {
+        headerSearchWrap.classList.toggle('has-value', Boolean(activeFilter.search));
       }
       renderCurrentView();
     });
@@ -352,7 +356,17 @@ async function init() {
       if (inputSearch) inputSearch.value = '';
       activeFilter.search = '';
       btnClearSearch.style.display = 'none';
+      if (headerSearchWrap) {
+        headerSearchWrap.classList.remove('has-value');
+      }
       renderCurrentView();
+    });
+  }
+  if (headerSearchWrap && inputSearch) {
+    headerSearchWrap.addEventListener('click', (e) => {
+      if (e.target !== btnClearSearch) {
+        inputSearch.focus();
+      }
     });
   }
 
