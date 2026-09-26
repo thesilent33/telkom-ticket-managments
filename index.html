@@ -29,7 +29,7 @@
 <body>
 
 <!-- ── Top Navigation (Sticky Header & Filter Bar) ──────────────── -->
-<div class="sticky-nav">
+<div class="sticky-nav" id="sticky-nav">
 
   <!-- ── Header ───────────────────────────────────────────────────── -->
   <header class="app-header">
@@ -41,6 +41,10 @@
       <div class="app-subtitle" id="ticket-summary">Memuat tiket...</div>
     </div>
     <div class="header-actions">
+      <button class="btn-header-batch" id="btn-batch-mode" title="Mode pilih banyak tiket untuk ukur / hapus">
+        <span>☑️</span>
+        <span>Pilih</span>
+      </button>
       <button class="btn-ukur-all-header" id="btn-ukur-all" title="Ukur semua tiket pada filter aktif">
         <span>📡</span>
         <span>Ukur Semua (<span id="ukur-all-count">0</span>)</span>
@@ -127,6 +131,27 @@
       </select>
     </div>
 
+    <div class="filter-divider"></div>
+
+    <!-- Toggle Collapse / Expand All -->
+    <div class="filter-group">
+      <button class="btn-filter" id="btn-toggle-compact" title="Ganti mode tampilan ringkas / rincian lengkap">
+        <span id="icon-compact-mode">📖</span>
+        <span id="label-compact-mode">Detail</span>
+      </button>
+    </div>
+
+    <div class="filter-divider"></div>
+
+    <!-- Search Box -->
+    <div class="filter-group filter-search-group">
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="search" id="input-search" class="input-search" placeholder="Cari INC, inet, ODP, teknisi..." autocomplete="off">
+        <button type="button" id="btn-clear-search" class="btn-clear-search" style="display:none;" title="Bersihkan pencarian">✕</button>
+      </div>
+    </div>
+
   </div>
 
 </div>
@@ -139,6 +164,28 @@
     <p>Memuat tiket...</p>
   </div>
 </main>
+
+<!-- ── Floating Batch Action Bar ───────────────────────────────── -->
+<div id="batch-action-bar" class="batch-action-bar" style="display:none;">
+  <div class="batch-bar-left">
+    <button class="btn-batch-select-all" id="btn-batch-select-all" title="Pilih semua / Batalkan semua">
+      <span id="batch-select-all-icon">☑️</span>
+      <span id="batch-select-all-text">Pilih Semua</span>
+    </button>
+    <span class="batch-selected-count" id="batch-selected-count">0 dipilih</span>
+  </div>
+  <div class="batch-bar-right">
+    <button class="btn-batch-action btn-batch-ukur" id="btn-batch-ukur" disabled title="Ukur tiket yang dipilih">
+      <span>📡</span> Ukur (<span id="batch-count-ukur">0</span>)
+    </button>
+    <button class="btn-batch-action btn-batch-delete" id="btn-batch-delete" disabled title="Hapus tiket yang dipilih">
+      <span>🗑️</span> Hapus (<span id="batch-count-delete">0</span>)
+    </button>
+    <button class="btn-batch-cancel" id="btn-batch-cancel" title="Tutup mode pilih">
+      ✕
+    </button>
+  </div>
+</div>
 
 <!-- ── Modal ─────────────────────────────────────────────────────── -->
 <div id="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title">

@@ -15,10 +15,37 @@ import {
 
 // ─── State ────────────────────────────────────────────────────────────────────
 let tickets           = [];   // array of ticket objects (local cache)
-let activeFilter      = { status: 'all', tier: 'all', sort: 'ttr_desc', group: 'all' };
+let activeFilter      = { status: 'all', tier: 'all', sort: 'ttr_desc', group: 'all', search: '' };
 let customGroups      = [];   // array nama grup kustom
 let isMeasuringAll    = false;
 let abortMeasuringAll = false;
+
+// Mode Ringkas / Compact vs Detail (Default: Collapse / Compact)
+let isCompactMode       = true;
+const expandedTicketIds  = new Set();
+const collapsedTicketIds = new Set();
+
+// Mode Batch Selection (Pilih banyak untuk ukur / hapus)
+let isBatchMode         = false;
+const selectedBatchIds   = new Set();
+let isMeasuringBatch    = false;
+let abortMeasuringBatch = false;
+
+// ─── Compact / Collapse helper ───────────────────────────────────────────────
+function isCardCollapsed(id) {
+  return isCompactMode ? !expandedTicketIds.has(id) : collapsedTicketIds.has(id);
+}
+
+// ─── Render current view with active filters & options ───────────────────────
+function renderCurrentView() {
+  renderAllTickets(getGroupTickets(), activeFilter, {
+    isCompact: isCompactMode,
+    isBatch: isBatchMode,
+    selectedIds: selectedBatchIds,
+    isCardCollapsedFn: isCardCollapsed,
+  });
+  updateUkurAllButton();
+}
 
 // ─── Group Storage & Helper ───────────────────────────────────────────────────
 function loadStoredCustomGroups() {
@@ -99,6 +126,33 @@ function getFilteredTickets() {
   if (activeFilter.tier && activeFilter.tier !== 'all') {
     list = list.filter(t => t.tier === activeFilter.tier);
   }
+  if (activeFilter.search && activeFilter.search.trim()) {
+    const q = activeFilter.search.trim().toLowerCase();
+    list = list.filter(t => {
+      const inc = (t.inc || '').toLowerCase();
+      const inet = (t.inet || '').toLowerCase();
+      const odp = (t.odp || '').toLowerCase();
+      const teknisi = (t.teknisi || '').toLowerCase();
+      const raw = (t.raw_input || '').toLowerCase();
+      const res = (t.result_text || '').toLowerCase();
+      const rest = (t.rest || '').toLowerCase();
+      const perbaikan = (t.perbaikan || '').toLowerCase();
+      const kendala = (t.kendala_text || '').toLowerCase();
+      const tier = (t.tier || '').toLowerCase();
+      const groups = Array.isArray(t.groups) ? t.groups.join(' ').toLowerCase() : (typeof t.groups === 'string' ? t.groups.toLowerCase() : '');
+      return inc.includes(q) ||
+             inet.includes(q) ||
+             odp.includes(q) ||
+             teknisi.includes(q) ||
+             raw.includes(q) ||
+             res.includes(q) ||
+             rest.includes(q) ||
+             perbaikan.includes(q) ||
+             kendala.includes(q) ||
+             tier.includes(q) ||
+             groups.includes(q);
+    });
+  }
   return list;
 }
 
@@ -115,6 +169,59 @@ function updateUkurAllButton() {
   }
 }
 
+// ─── Batch Action Bar UI Helper ───────────────────────────────────────────────
+function updateBatchActionBar() {
+  const bar = document.getElementById('batch-action-bar');
+  if (!bar) return;
+
+  const countSelected = selectedBatchIds.size;
+  const countEl = document.getElementById('batch-selected-count');
+  if (countEl) countEl.textContent = `${countSelected} dipilih`;
+
+  const btnUkur = document.getElementById('btn-batch-ukur');
+  const countUkurEl = document.getElementById('batch-count-ukur');
+  const btnDelete = document.getElementById('btn-batch-delete');
+  const countDeleteEl = document.getElementById('batch-count-delete');
+
+  const selectedTickets = tickets.filter(t => selectedBatchIds.has(t.id));
+  const selectedWithInet = selectedTickets.filter(t => t.inet);
+
+  if (countUkurEl) countUkurEl.textContent = selectedWithInet.length;
+  if (btnUkur && !isMeasuringBatch) btnUkur.disabled = selectedWithInet.length === 0;
+
+  if (countDeleteEl) countDeleteEl.textContent = countSelected;
+  if (btnDelete) btnDelete.disabled = countSelected === 0;
+
+  const visibleTickets = getFilteredTickets();
+  const allVisibleSelected = visibleTickets.length > 0 && visibleTickets.every(t => selectedBatchIds.has(t.id));
+  const selectAllText = document.getElementById('batch-select-all-text');
+  const selectAllIcon = document.getElementById('batch-select-all-icon');
+  if (selectAllText) selectAllText.textContent = allVisibleSelected ? 'Batalkan Semua' : 'Pilih Semua';
+  if (selectAllIcon) selectAllIcon.textContent = allVisibleSelected ? '⬜' : '☑️';
+}
+
+function setBatchMode(active) {
+  isBatchMode = active;
+  if (!isBatchMode) {
+    selectedBatchIds.clear();
+  }
+  document.body.classList.toggle('batch-mode-active', isBatchMode);
+  const btnBatchMode = document.getElementById('btn-batch-mode');
+  if (btnBatchMode) btnBatchMode.classList.toggle('active', isBatchMode);
+
+  const batchActionBar = document.getElementById('batch-action-bar');
+  if (batchActionBar) {
+    batchActionBar.style.display = isBatchMode ? 'flex' : 'none';
+  }
+
+  renderCurrentView();
+  updateBatchActionBar();
+
+  if (isBatchMode) {
+    showToast('☑️ Mode pilih aktif: centang tiket yang ingin diukur/dihapus', 'info');
+  }
+}
+
 // ─── Init ─────────────────────────────────────────────────────────────────────
 async function init() {
   showLoading(true);
@@ -124,7 +231,7 @@ async function init() {
     mergeGroupsIntoTickets(tickets);
 
     renderGroupTabs(customGroups, activeFilter.group, tickets);
-    renderAllTickets(getGroupTickets(), activeFilter);
+    renderCurrentView();
     updateStats(getGroupTickets());
     updateUkurAllButton();
   } catch (e) {
@@ -143,6 +250,130 @@ async function init() {
   // Event delegation
   document.addEventListener('click', handleClick);
   document.addEventListener('input', handleInput);
+
+  // Checkbox batch selection change listener
+  document.addEventListener('change', (e) => {
+    if (e.target.classList.contains('card-batch-select')) {
+      const id = e.target.dataset.batchId;
+      if (!id) return;
+      if (e.target.checked) {
+        selectedBatchIds.add(id);
+      } else {
+        selectedBatchIds.delete(id);
+      }
+      const card = e.target.closest('.ticket-card');
+      if (card) card.classList.toggle('is-batch-selected', e.target.checked);
+      updateBatchActionBar();
+    }
+  });
+
+  // Mobile Autohide Sticky Header saat scroll ke bawah
+  let lastScrollY = window.scrollY;
+  let scrollTicking = false;
+
+  window.addEventListener('scroll', () => {
+    if (!scrollTicking) {
+      window.requestAnimationFrame(() => {
+        const currentScrollY = window.scrollY;
+        const stickyNav = document.getElementById('sticky-nav');
+        if (stickyNav) {
+          const delta = currentScrollY - lastScrollY;
+          // Hanya sembunyikan jika scroll ke bawah dan sudah lewat header atas (> 60px)
+          if (currentScrollY > 60 && delta > 8) {
+            stickyNav.classList.add('nav-hidden');
+          } else if (delta < -8 || currentScrollY <= 25) {
+            stickyNav.classList.remove('nav-hidden');
+          }
+        }
+        lastScrollY = Math.max(0, currentScrollY);
+        scrollTicking = false;
+      });
+      scrollTicking = true;
+    }
+  }, { passive: true });
+
+  // Search input & clear button
+  const inputSearch = document.getElementById('input-search');
+  const btnClearSearch = document.getElementById('btn-clear-search');
+  if (inputSearch) {
+    inputSearch.addEventListener('input', (e) => {
+      activeFilter.search = e.target.value;
+      if (btnClearSearch) {
+        btnClearSearch.style.display = activeFilter.search ? 'inline-flex' : 'none';
+      }
+      renderCurrentView();
+    });
+  }
+  if (btnClearSearch) {
+    btnClearSearch.addEventListener('click', () => {
+      if (inputSearch) inputSearch.value = '';
+      activeFilter.search = '';
+      btnClearSearch.style.display = 'none';
+      renderCurrentView();
+    });
+  }
+
+  // Toggle Collapse / Expand All
+  const btnToggleCompact = document.getElementById('btn-toggle-compact');
+  const iconCompactMode = document.getElementById('icon-compact-mode');
+  const labelCompactMode = document.getElementById('label-compact-mode');
+
+  // Default mode: compact mode is TRUE
+  if (labelCompactMode) labelCompactMode.textContent = 'Detail';
+  if (iconCompactMode) iconCompactMode.textContent = '📖';
+
+  if (btnToggleCompact) {
+    btnToggleCompact.addEventListener('click', () => {
+      isCompactMode = !isCompactMode;
+      expandedTicketIds.clear();
+      collapsedTicketIds.clear();
+
+      if (isCompactMode) {
+        if (labelCompactMode) labelCompactMode.textContent = 'Detail';
+        if (iconCompactMode) iconCompactMode.textContent = '📖';
+        btnToggleCompact.classList.remove('active');
+        showToast('📁 Tampilan diringkas (Compact mode)', 'info');
+      } else {
+        if (labelCompactMode) labelCompactMode.textContent = 'Ringkas';
+        if (iconCompactMode) iconCompactMode.textContent = '📁';
+        btnToggleCompact.classList.add('active');
+        showToast('📖 Tampilan lengkap (Detail mode)', 'info');
+      }
+      renderCurrentView();
+    });
+  }
+
+  // Batch Mode Toggle button di header
+  const btnBatchMode = document.getElementById('btn-batch-mode');
+  if (btnBatchMode) {
+    btnBatchMode.addEventListener('click', () => {
+      setBatchMode(!isBatchMode);
+    });
+  }
+
+  // Batch Action Bar: Select All
+  const btnBatchSelectAll = document.getElementById('btn-batch-select-all');
+  if (btnBatchSelectAll) {
+    btnBatchSelectAll.addEventListener('click', handleBatchSelectAll);
+  }
+
+  // Batch Action Bar: Cancel / Close
+  const btnBatchCancel = document.getElementById('btn-batch-cancel');
+  if (btnBatchCancel) {
+    btnBatchCancel.addEventListener('click', () => setBatchMode(false));
+  }
+
+  // Batch Action Bar: Delete
+  const btnBatchDelete = document.getElementById('btn-batch-delete');
+  if (btnBatchDelete) {
+    btnBatchDelete.addEventListener('click', handleBatchDelete);
+  }
+
+  // Batch Action Bar: Ukur
+  const btnBatchUkur = document.getElementById('btn-batch-ukur');
+  if (btnBatchUkur) {
+    btnBatchUkur.addEventListener('click', handleBatchUkur);
+  }
 
   // Group bar events
   const groupBar = document.getElementById('group-bar');
@@ -165,7 +396,7 @@ async function init() {
       if (tabBtn) {
         activeFilter.group = tabBtn.dataset.group;
         renderGroupTabs(customGroups, activeFilter.group, tickets);
-        renderAllTickets(getGroupTickets(), activeFilter);
+        renderCurrentView();
         updateStats(getGroupTickets());
         updateUkurAllButton();
       }
@@ -178,8 +409,7 @@ async function init() {
       activeFilter.status = btn.dataset.filterStatus;
       document.querySelectorAll('[data-filter-status]').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      renderAllTickets(getGroupTickets(), activeFilter);
-      updateUkurAllButton();
+      renderCurrentView();
     });
   });
 
@@ -189,8 +419,7 @@ async function init() {
       activeFilter.tier = btn.dataset.filterTier;
       document.querySelectorAll('[data-filter-tier]').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      renderAllTickets(getGroupTickets(), activeFilter);
-      updateUkurAllButton();
+      renderCurrentView();
     });
   });
 
@@ -200,7 +429,7 @@ async function init() {
     sortSelect.value = activeFilter.sort;
     sortSelect.addEventListener('change', (e) => {
       activeFilter.sort = e.target.value;
-      renderAllTickets(getGroupTickets(), activeFilter);
+      renderCurrentView();
     });
   }
 
@@ -224,9 +453,9 @@ function handleRealtimeChange({ eventType, old: oldRow, new: newRow }) {
       mergeGroupsIntoTickets([newRow]);
       tickets.push(newRow);
       renderGroupTabs(customGroups, activeFilter.group, tickets);
-      renderAllTickets(getGroupTickets(), activeFilter);
+      renderCurrentView();
       updateStats(getGroupTickets());
-      updateUkurAllButton();
+      updateBatchActionBar();
     }
   } else if (eventType === 'UPDATE') {
     const idx = tickets.findIndex(t => t.id === newRow.id);
@@ -238,21 +467,59 @@ function handleRealtimeChange({ eventType, old: oldRow, new: newRow }) {
       mergeGroupsIntoTickets([newRow]);
       tickets.push(newRow);
     }
-    updateCardInPlace(newRow);
+    updateCardInPlace(newRow, isCardCollapsed(newRow.id), isBatchMode, selectedBatchIds.has(newRow.id));
     renderGroupTabs(customGroups, activeFilter.group, tickets);
     updateStats(getGroupTickets());
+    updateBatchActionBar();
     updateUkurAllButton();
   } else if (eventType === 'DELETE') {
     tickets = tickets.filter(t => t.id !== oldRow.id);
+    selectedBatchIds.delete(oldRow.id);
     removeCard(oldRow.id);
     renderGroupTabs(customGroups, activeFilter.group, tickets);
     updateStats(getGroupTickets());
+    updateBatchActionBar();
     updateUkurAllButton();
   }
 }
 
 // ─── Event delegation ─────────────────────────────────────────────────────────
 async function handleClick(e) {
+  // Toggle rincian kartu (collapse / expand per card)
+  const expandBtn = e.target.closest('[data-action="toggle-card-collapse"]');
+  if (expandBtn) {
+    const id = expandBtn.dataset.id;
+    const card = expandBtn.closest('.ticket-card');
+    if (!id || !card) return;
+
+    if (isCompactMode) {
+      if (expandedTicketIds.has(id)) {
+        expandedTicketIds.delete(id);
+        card.classList.add('is-collapsed');
+        expandBtn.textContent = '▼';
+        expandBtn.title = 'Lihat rincian';
+      } else {
+        expandedTicketIds.add(id);
+        card.classList.remove('is-collapsed');
+        expandBtn.textContent = '▲';
+        expandBtn.title = 'Sembunyikan rincian';
+      }
+    } else {
+      if (collapsedTicketIds.has(id)) {
+        collapsedTicketIds.delete(id);
+        card.classList.remove('is-collapsed');
+        expandBtn.textContent = '▲';
+        expandBtn.title = 'Sembunyikan rincian';
+      } else {
+        collapsedTicketIds.add(id);
+        card.classList.add('is-collapsed');
+        expandBtn.textContent = '▼';
+        expandBtn.title = 'Lihat rincian';
+      }
+    }
+    return;
+  }
+
   const btn = e.target.closest('[data-action]');
   if (!btn) return;
 
@@ -305,9 +572,8 @@ async function handleAddTicket() {
           tickets.push(t);
         }
       });
-      renderAllTickets(tickets, activeFilter);
-      updateStats(tickets);
-      updateUkurAllButton();
+      renderCurrentView();
+      updateStats(getGroupTickets());
     }
     showToast(`✅ ${parsed.length} tiket berhasil ditambahkan!`, 'success');
   } catch (err) {
@@ -377,12 +643,150 @@ async function handleUkur(ticket) {
     const idx = tickets.findIndex(t => t.id === ticket.id);
     if (idx !== -1) tickets[idx] = updated;
     updateCardInPlace(updated);
+    updateBatchActionBar();
     showToast('📡 Hasil ukur berhasil diperbarui!', 'success');
   } catch (err) {
     console.error(err);
     showToast(`❌ Gagal ukur redaman: ${err.message || 'Cek URL n8n di config.js.'}`, 'error');
     setUkurLoading(ticket.id, false);
   }
+}
+
+// ─── Batch Actions (Select All, Delete, Ukur) ─────────────────────────────────
+function handleBatchSelectAll() {
+  const visible = getFilteredTickets();
+  if (visible.length === 0) return;
+
+  const allSelected = visible.every(t => selectedBatchIds.has(t.id));
+  if (allSelected) {
+    visible.forEach(t => selectedBatchIds.delete(t.id));
+  } else {
+    visible.forEach(t => selectedBatchIds.add(t.id));
+  }
+  renderCurrentView();
+  updateBatchActionBar();
+}
+
+async function handleBatchDelete() {
+  if (selectedBatchIds.size === 0) return;
+  const count = selectedBatchIds.size;
+
+  showModal(`
+    <h3 class="modal-title">🗑️ Hapus ${count} Tiket Terpilih?</h3>
+    <p>Tiket yang dipilih akan dihapus secara permanen dari sistem.</p>
+  `, {
+    confirmLabel: `🗑️ Hapus ${count} Tiket`,
+    dangerous: true,
+    onConfirm: async () => {
+      showLoading(true);
+      const toDelete = [...selectedBatchIds];
+      let successCount = 0;
+
+      for (const id of toDelete) {
+        try {
+          await deleteTicket(id);
+          tickets = tickets.filter(t => t.id !== id);
+          removeCard(id);
+          successCount++;
+        } catch (err) {
+          console.error(`Gagal menghapus tiket ${id}:`, err);
+        }
+      }
+
+      selectedBatchIds.clear();
+      showLoading(false);
+      renderGroupTabs(customGroups, activeFilter.group, tickets);
+      updateStats(getGroupTickets());
+      updateBatchActionBar();
+      renderCurrentView();
+      showToast(`🗑️ ${successCount} dari ${count} tiket berhasil dihapus.`, 'info');
+    }
+  });
+}
+
+async function handleBatchUkur() {
+  if (selectedBatchIds.size === 0) return;
+
+  const targetTickets = tickets.filter(t => selectedBatchIds.has(t.id) && t.inet);
+  if (targetTickets.length === 0) {
+    showToast('⚠️ Tidak ada tiket ber-iNetID dari yang dipilih.', 'warning');
+    return;
+  }
+
+  if (isMeasuringBatch) {
+    if (confirm('Hentikan proses ukur massal tiket terpilih?')) {
+      abortMeasuringBatch = true;
+    }
+    return;
+  }
+
+  showModal(`
+    <h3 class="modal-title">📡 Ukur ${targetTickets.length} Tiket Terpilih</h3>
+    <p>Akan mengukur redaman untuk <b>${targetTickets.length} tiket</b> terpilih secara berurutan.</p>
+    <div class="ukur-info-box">
+      Estimasi waktu: ~${Math.ceil((targetTickets.length * 20) / 60)} menit. Server i-booster Telkom ~15-25 detik/tiket.
+    </div>
+  `, {
+    confirmLabel: `📡 Mulai Ukur (${targetTickets.length})`,
+    cancelLabel: 'Batal',
+    onConfirm: async () => {
+      isMeasuringBatch = true;
+      abortMeasuringBatch = false;
+
+      const btnBatchUkur = document.getElementById('btn-batch-ukur');
+      let successCount = 0;
+
+      for (let i = 0; i < targetTickets.length; i++) {
+        if (abortMeasuringBatch) break;
+        const t = targetTickets[i];
+
+        if (btnBatchUkur) {
+          btnBatchUkur.innerHTML = `<span>⏳</span> ${i + 1}/${targetTickets.length} (Batal)`;
+        }
+        setUkurLoading(t.id, true);
+
+        try {
+          const result = await ukurRedaman(t.inet);
+          if (result && result.success) {
+            const changes = {
+              onu_sn:        result.onu_sn        ?? null,
+              onu_status:    result.onu_status    ?? null,
+              onu_rx:        result.onu_rx        ?? null,
+              olt_rx:        result.olt_rx        ?? null,
+              onu_rx_status: result.onu_rx_status ?? null,
+              olt_rx_status: result.olt_rx_status ?? null,
+              acs_status:    result.acs_status    ?? null,
+              pcrf:          result.pcrf          ?? null,
+              gpon:          result.gpon          ?? null,
+              result_text:   result.result_text   ?? null,
+              redaman_at:    new Date().toISOString(),
+            };
+            const updated = await updateTicket(t.id, changes);
+            const idx = tickets.findIndex(x => x.id === t.id);
+            if (idx !== -1) tickets[idx] = updated;
+            updateCardInPlace(updated);
+            successCount++;
+          }
+        } catch (err) {
+          console.error(`Gagal ukur tiket ${t.inc}:`, err);
+        } finally {
+          setUkurLoading(t.id, false);
+        }
+      }
+
+      isMeasuringBatch = false;
+      if (btnBatchUkur) {
+        btnBatchUkur.innerHTML = `<span>📡</span> Ukur (<span id="batch-count-ukur">${targetTickets.length}</span>)`;
+      }
+      updateBatchActionBar();
+
+      if (abortMeasuringBatch) {
+        showToast(`⏹️ Pengukuran dihentikan (${successCount}/${targetTickets.length} selesai).`, 'warning');
+      } else {
+        showToast(`✅ Selesai mengukur ${successCount} dari ${targetTickets.length} tiket terpilih!`, 'success');
+      }
+    }
+  });
 }
 
 // ─── Helper: Identifikasi Tiket LOS & Belum Diukur ────────────────────────────
@@ -738,9 +1142,11 @@ function handleDelete(ticket) {
       try {
         await deleteTicket(ticket.id);
         tickets = tickets.filter(t => t.id !== ticket.id);
+        selectedBatchIds.delete(ticket.id);
         removeCard(ticket.id);
         renderGroupTabs(customGroups, activeFilter.group, tickets);
         updateStats(getGroupTickets());
+        updateBatchActionBar();
         updateUkurAllButton();
         showToast('🗑️ Tiket dihapus', 'info');
       } catch (err) {
@@ -759,7 +1165,7 @@ async function handlePin(ticket) {
   ticket.sort_order = newPin ? 1 : 0;
 
   // Re-render segera untuk respon instan
-  renderAllTickets(getGroupTickets(), activeFilter);
+  renderCurrentView();
   showToast(newPin ? '📌 Tiket dipin ke paling atas!' : '📍 Pin tiket dilepas', 'success');
 
   try {
@@ -806,7 +1212,7 @@ function handleDeleteGroup(groupName) {
   }
 
   renderGroupTabs(customGroups, activeFilter.group, tickets);
-  renderAllTickets(getGroupTickets(), activeFilter);
+  renderCurrentView();
   updateStats(getGroupTickets());
   updateUkurAllButton();
   showToast(`🗑️ Grup "${groupName}" telah dihapus.`, 'success');

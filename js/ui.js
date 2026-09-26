@@ -131,13 +131,87 @@ function extractOntType(ticket) {
   return '';
 }
 
-function renderRedaman(ticket) {
-  const summary = formatRedamanSummary(ticket);
-  if (!summary && !ticket.redaman_at) {
-    return `<span class="redaman-empty">📡 Belum diukur</span>`;
+function getCompactRedamanStatus(ticket) {
+  // 1. Ekstrak onu_rx numerik jika ada
+  let rxVal = null;
+  if (ticket.onu_rx !== null && ticket.onu_rx !== undefined && ticket.onu_rx !== '') {
+    const parsed = parseFloat(String(ticket.onu_rx).replace(/[^\d.-]/g, ''));
+    if (!isNaN(parsed)) rxVal = parsed;
+  }
+  if (rxVal === null && ticket.result_text) {
+    const m = ticket.result_text.match(/onu(?:\s+rx)?(?:\s+power)?\s*[:=]?\s*([-\d.]+)/i);
+    if (m) {
+      const parsed = parseFloat(m[1]);
+      if (!isNaN(parsed)) rxVal = parsed;
+    }
   }
 
-  // Tipe ONT jika ada di result_text atau onu_tipe
+  // 2. Status string
+  const onuStatus = (ticket.onu_status || '').toUpperCase();
+  const rawText = `${ticket.raw_input || ''} ${ticket.rest || ''} ${ticket.gangguan || ''} ${ticket.result_text || ''}`.toUpperCase();
+
+  // 3. Cek LOS / Offline / Putus terlebih dahulu
+  if (
+    onuStatus.includes('LOS') ||
+    onuStatus.includes('OFFLINE') ||
+    onuStatus.includes('DYING') ||
+    /-\s*‼️/.test(rawText) ||
+    /\bLOS\b/.test(rawText)
+  ) {
+    return {
+      type: 'los',
+      text: 'St: LOS ❌',
+      badgeClass: 'status-los',
+    };
+  }
+
+  // 4. Jika ada rxVal:
+  // Unspec ketika redaman ONU di bawah -23.99 dBm (e.g. -24.00, -26.02)
+  if (rxVal !== null) {
+    if (rxVal < -23.99) {
+      return {
+        type: 'unspec',
+        text: 'St: UNSPEC ⚠️',
+        badgeClass: 'status-unspec',
+      };
+    } else {
+      return {
+        type: 'online',
+        text: 'St: ONLINE ✅',
+        badgeClass: 'status-online',
+      };
+    }
+  }
+
+  // 5. Cek apakah online berdasarkan onu_status atau teks
+  if (onuStatus.includes('ONLINE') || /\bONLINE\b/.test(rawText)) {
+    return {
+      type: 'online',
+      text: 'St: ONLINE ✅',
+      badgeClass: 'status-online',
+    };
+  }
+
+  // 6. Belum diukur
+  if (!ticket.redaman_at && !ticket.onu_status && !ticket.onu_rx) {
+    return {
+      type: 'unmeasured',
+      text: 'Belum Diukur ⏳',
+      badgeClass: 'status-unmeasured',
+    };
+  }
+
+  // Fallback
+  return {
+    type: 'unmeasured',
+    text: `St: ${ticket.onu_status || 'Belum Diukur'}`,
+    badgeClass: 'status-unmeasured',
+  };
+}
+
+function renderRedaman(ticket) {
+  const compactStatus = getCompactRedamanStatus(ticket);
+  const summary = formatRedamanSummary(ticket);
   const tipeOnt = extractOntType(ticket);
 
   const snHtml = ticket.onu_sn
@@ -164,11 +238,25 @@ function renderRedaman(ticket) {
     ? `<div class="redaman-time" data-measured="${ticket.redaman_at}">🕐 Diukur: ${formatLastUpdated(ticket.redaman_at)}</div>`
     : '';
 
+  const detailsHtml = (summary || snHtml || metaHtml || timeHtml)
+    ? `
+      <div class="redaman-details">
+        ${summary ? `<div class="redaman-summary">${summary}</div>` : ''}
+        ${snHtml}
+        ${metaHtml}
+        ${timeHtml}
+      </div>`
+    : `
+      <div class="redaman-details">
+        <span class="redaman-empty">📡 Belum ada rincian pengukuran</span>
+      </div>`;
+
   return `
-    ${summary ? `<div class="redaman-summary">${summary}</div>` : ''}
-    ${snHtml}
-    ${metaHtml}
-    ${timeHtml}`;
+    <div class="redaman-compact-row">
+      <span class="redaman-compact-badge ${compactStatus.badgeClass}">${compactStatus.text}</span>
+      <button class="btn-card-expand" data-action="toggle-card-collapse" data-id="${ticket.id}" title="Buka / tutup rincian" aria-label="Toggle rincian kartu">▼</button>
+    </div>
+    ${detailsHtml}`;
 }
 
 // ─── Progress text ────────────────────────────────────────────────────────────
@@ -212,16 +300,22 @@ function renderActions(ticket) {
 
 // ─── Full card render ─────────────────────────────────────────────────────────
 
-function renderTicketCard(ticket) {
+function renderTicketCard(ticket, isCompact = true, isBatch = false, isSelected = false) {
   const tier    = ticket.tier ?? 'REGULER';
   const cfg     = CONFIG.TIERS[tier] ?? CONFIG.TIERS.REGULER;
   const sla     = getSlaInfo(ticket);
   const isDone  = ticket.status === 'done';
   const isKendala = ticket.status === 'kendala';
 
-  let cardClass = 'ticket-card';
-  if (isDone)    cardClass += ' card-done';
-  if (isKendala) cardClass += ' card-kendala';
+  const cardClasses = ['ticket-card'];
+  if (isDone)      cardClasses.push('card-done');
+  if (isKendala)   cardClasses.push('card-kendala');
+  if (isCompact)   cardClasses.push('is-collapsed');
+  if (isSelected)  cardClasses.push('is-batch-selected');
+
+  const isPinned = ticket.is_pinned || ticket.sort_order === 1;
+  if (isPinned) cardClasses.push('card-pinned');
+  cardClasses.push(`tier-${tier.toLowerCase().replace(/_/g, '-')}`);
 
   const slaHtml = sla
     ? `<span class="sla-timer ${sla.className}" data-id="${ticket.id}" data-reported="${ticket.reported_at}" data-deadline="${ticket.sla_deadline ?? ''}">⏱️ ${sla.label}</span>`
@@ -233,24 +327,24 @@ function renderTicketCard(ticket) {
   const restStr  = ticket.rest ? `<span class="rest-text"> · ${ticket.rest}</span>` : '';
   const teknisi  = ticket.teknisi || '—';
 
-  const isPinned = ticket.is_pinned || ticket.sort_order === 1;
-  const pinBadge = isPinned ? `<span class="pin-badge">📌 PIN</span>` : '';
   const pinBtn   = `<button class="btn-card-pin ${isPinned ? 'active' : ''}" data-action="pin" data-id="${ticket.id}" title="${isPinned ? 'Lepas Pin' : 'Pin Tiket'}" aria-label="Pin tiket">📌</button>`;
 
   const rawGroups = ticket.groups;
   const groups = Array.isArray(rawGroups) ? rawGroups : (typeof rawGroups === 'string' && rawGroups ? rawGroups.split(',').map(s=>s.trim()).filter(Boolean) : []);
   const groupsHtml = groups.map(g => `<span class="group-tag-chip">📁 ${g}</span>`).join('');
 
+  const batchCheckbox = `<input type="checkbox" class="card-batch-select" data-batch-id="${ticket.id}" ${isSelected ? 'checked' : ''} aria-label="Pilih tiket ${ticket.inc || ticket.id}">`;
+
   return `
-<article class="ticket-card ${cardClass}${isPinned ? ' card-pinned' : ''} tier-${tier.toLowerCase().replace(/_/g,'-')}"
+<article class="${cardClasses.join(' ')}"
          data-id="${ticket.id}"
          style="border-left-color: ${cfg.color}; background: ${isDone ? '#f0fdf4' : isKendala ? '#fffbeb' : cfg.bg}">
 
   <div class="card-header">
     <div class="card-header-left">
+      ${batchCheckbox}
       ${renderTierBadge(tier)}
       <span class="inc-wrapper">${incStr}</span>
-      ${pinBadge}
     </div>
     <div class="card-header-right">
       ${slaHtml}
@@ -286,9 +380,14 @@ function renderTicketCard(ticket) {
 
 // ─── Render all tickets with sorting ──────────────────────────────────────────
 
-function renderAllTickets(tickets, filter = {}) {
+function renderAllTickets(tickets, filter = {}, options = {}) {
   const container = document.getElementById('tickets-container');
   if (!container) return;
+
+  const isCompact = options.isCompact !== undefined ? options.isCompact : true;
+  const isBatch = Boolean(options.isBatch);
+  const selectedIds = options.selectedIds || new Set();
+  const isCardCollapsedFn = options.isCardCollapsedFn || null;
 
   let list = [...tickets];
 
@@ -305,6 +404,35 @@ function renderAllTickets(tickets, filter = {}) {
     list = list.filter(t => {
       const g = Array.isArray(t.groups) ? t.groups : (typeof t.groups === 'string' && t.groups ? t.groups.split(',').map(s=>s.trim()).filter(Boolean) : []);
       return g.includes(filter.group);
+    });
+  }
+
+  // Filter search
+  if (filter.search && filter.search.trim()) {
+    const q = filter.search.trim().toLowerCase();
+    list = list.filter(t => {
+      const inc = (t.inc || '').toLowerCase();
+      const inet = (t.inet || '').toLowerCase();
+      const odp = (t.odp || '').toLowerCase();
+      const teknisi = (t.teknisi || '').toLowerCase();
+      const raw = (t.raw_input || '').toLowerCase();
+      const res = (t.result_text || '').toLowerCase();
+      const rest = (t.rest || '').toLowerCase();
+      const perbaikan = (t.perbaikan || '').toLowerCase();
+      const kendala = (t.kendala_text || '').toLowerCase();
+      const tier = (t.tier || '').toLowerCase();
+      const groups = Array.isArray(t.groups) ? t.groups.join(' ').toLowerCase() : (typeof t.groups === 'string' ? t.groups.toLowerCase() : '');
+      return inc.includes(q) ||
+             inet.includes(q) ||
+             odp.includes(q) ||
+             teknisi.includes(q) ||
+             raw.includes(q) ||
+             res.includes(q) ||
+             rest.includes(q) ||
+             perbaikan.includes(q) ||
+             kendala.includes(q) ||
+             tier.includes(q) ||
+             groups.includes(q);
     });
   }
 
@@ -353,24 +481,37 @@ function renderAllTickets(tickets, filter = {}) {
   });
 
   if (list.length === 0) {
+    const isSearching = Boolean(filter.search && filter.search.trim());
     container.innerHTML = `
       <div class="empty-state">
-        <div class="empty-icon">📭</div>
-        <p>Belum ada tiket${filter.status && filter.status !== 'all' ? ` dengan status <b>${filter.status}</b>` : ''}</p>
-        <p class="empty-sub">Tap tombol <b>+ Tambah</b> untuk menambahkan tiket baru</p>
+        <div class="empty-icon">${isSearching ? '🔍' : '📭'}</div>
+        <p>${isSearching ? `Tidak ada tiket yang cocok dengan "<b>${filter.search}</b>"` : `Belum ada tiket${filter.status && filter.status !== 'all' ? ` dengan status <b>${filter.status}</b>` : ''}`}</p>
+        <p class="empty-sub">${isSearching ? 'Coba kata kunci pencarian yang lain' : 'Tap tombol <b>+ Tambah</b> untuk menambahkan tiket baru'}</p>
       </div>`;
     return;
   }
 
-  container.innerHTML = list.map(renderTicketCard).join('');
+  container.innerHTML = list.map(ticket => {
+    const isSelected = selectedIds.has(ticket.id);
+    const cardCollapsed = isCardCollapsedFn ? isCardCollapsedFn(ticket.id) : isCompact;
+    return renderTicketCard(ticket, cardCollapsed, isBatch, isSelected);
+  }).join('');
 }
 
 // ─── In-place card update ─────────────────────────────────────────────────────
 
-function updateCardInPlace(ticket) {
+function updateCardInPlace(ticket, isCompact = undefined, isBatch = undefined, isSelected = undefined) {
   const el = document.querySelector(`[data-id="${ticket.id}"]`);
   if (!el) return;
-  el.outerHTML = renderTicketCard(ticket);
+  const currentlyCollapsed = el.classList.contains('is-collapsed');
+  const currentlySelected = el.classList.contains('is-batch-selected');
+  const currentlyBatchMode = document.body.classList.contains('batch-mode-active');
+  el.outerHTML = renderTicketCard(
+    ticket,
+    isCompact !== undefined ? isCompact : currentlyCollapsed,
+    isBatch !== undefined ? isBatch : currentlyBatchMode,
+    isSelected !== undefined ? isSelected : currentlySelected
+  );
 }
 
 function removeCard(id) {
@@ -713,6 +854,7 @@ export {
   updateAllTimers,
   updateStats,
   getSlaInfo,
+  getCompactRedamanStatus,
   getSavedTechnicians,
   saveTechnicianName,
 };
