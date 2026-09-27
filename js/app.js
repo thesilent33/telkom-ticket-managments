@@ -1083,20 +1083,35 @@ async function handleBatchGroup() {
   const toAssignIds = [...selectedBatchIds];
   const targetTickets = tickets.filter(t => toAssignIds.includes(t.id));
 
+  const getTicketGroups = (t) => Array.isArray(t.groups)
+    ? t.groups
+    : (typeof t.groups === 'string' && t.groups ? t.groups.split(',').map(s=>s.trim()).filter(Boolean) : []);
+
   const itemsHtml = customGroups.length === 0
     ? `<div id="modal-batch-group-empty" style="color: #94a3b8; font-size: 0.82rem; padding: 10px; text-align: center;">Belum ada grup yang dibuat. Ketik nama grup baru di bawah.</div>`
-    : customGroups.map(g => `
-        <label class="group-select-item" data-group-name="${g}">
-          <span>📁 <b>${g}</b></span>
-          <input type="checkbox" name="batch-group-check" value="${g}">
-        </label>
-      `).join('');
+    : customGroups.map(g => {
+        const countWithGroup = targetTickets.filter(t => getTicketGroups(t).includes(g)).length;
+        const isChecked = countWithGroup > 0;
+        let badge = '';
+        if (countWithGroup === targetTickets.length && targetTickets.length > 1) {
+          badge = `<small style="color: #10b981; font-weight: 600; font-size: 0.74rem; margin-left: 6px;">(Semua tiket)</small>`;
+        } else if (countWithGroup > 0 && targetTickets.length > 1) {
+          badge = `<small style="color: #f59e0b; font-weight: 600; font-size: 0.74rem; margin-left: 6px;">(${countWithGroup}/${targetTickets.length} tiket)</small>`;
+        }
+
+        return `
+          <label class="group-select-item ${isChecked ? 'checked' : ''}" data-group-name="${g}">
+            <span>📁 <b>${g}</b>${badge}</span>
+            <input type="checkbox" name="batch-group-check" value="${g}" ${isChecked ? 'checked' : ''}>
+          </label>
+        `;
+      }).join('');
 
   showModal(`
     <h3 class="modal-title">📁 Masukkan ke Grup / Folder</h3>
-    <p class="modal-subtitle">Pilih grup tujuan untuk <b>${count} tiket</b> yang dipilih:</p>
+    <p class="modal-subtitle">Kelola grup untuk <b>${count} tiket</b> yang dipilih:</p>
     <div style="font-size:0.82rem; color:#64748b; margin-bottom:8px;">Pilih satu atau lebih grup:</div>
-    <div class="group-select-list" id="modal-batch-group-list" style="max-height: 180px; margin: 8px 0 12px;">
+    <div class="group-select-list" id="modal-batch-group-list" style="max-height: 200px; margin: 8px 0 12px;">
       ${itemsHtml}
     </div>
     <div class="group-create-row" style="margin-top: 6px;">
@@ -1104,7 +1119,7 @@ async function handleBatchGroup() {
       <button type="button" id="btn-modal-batch-group" class="btn btn-secondary btn-sm" style="white-space: nowrap; padding: 6px 12px; font-size: 0.82rem;">Tambah</button>
     </div>
   `, {
-    confirmLabel: '💾 Masukkan ke Grup',
+    confirmLabel: '💾 Simpan Grup',
     cancelLabel: 'Batal',
     onConfirm: async () => {
       const checkedGroups = Array.from(document.querySelectorAll('input[name="batch-group-check"]:checked'))
@@ -1120,15 +1135,15 @@ async function handleBatchGroup() {
         if (!checkedGroups.includes(pending)) checkedGroups.push(pending);
       }
 
-      if (checkedGroups.length === 0) {
-        showToast('⚠️ Tidak ada grup yang dipilih.', 'warning');
-        return;
-      }
-
       showLoading(true);
       for (const t of targetTickets) {
-        const cur = Array.isArray(t.groups) ? t.groups : (typeof t.groups === 'string' && t.groups ? t.groups.split(',').map(s=>s.trim()).filter(Boolean) : []);
-        const updated = Array.from(new Set([...cur, ...checkedGroups]));
+        const cur = getTicketGroups(t);
+        // Pertahankan tag non-custom (jika ada), sinkronkan customGroups dengan yang dicentang
+        const updated = cur.filter(g => !customGroups.includes(g) || checkedGroups.includes(g));
+        checkedGroups.forEach(g => {
+          if (!updated.includes(g)) updated.push(g);
+        });
+
         await saveTicketGroups(t.id, updated);
         updateCardInPlace(t);
       }
@@ -1139,7 +1154,11 @@ async function handleBatchGroup() {
       updateStats(getGroupTickets());
       updateBatchActionBar();
       renderCurrentView();
-      showToast(`📁 ${count} tiket berhasil dimasukkan ke grup: ${checkedGroups.join(', ')}`, 'success');
+      if (checkedGroups.length > 0) {
+        showToast(`📁 Grup untuk ${count} tiket berhasil disimpan: ${checkedGroups.join(', ')}`, 'success');
+      } else {
+        showToast(`📁 Grup untuk ${count} tiket telah dikosongkan.`, 'info');
+      }
     }
   });
 

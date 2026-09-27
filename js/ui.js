@@ -132,7 +132,56 @@ function extractOntType(ticket) {
 }
 
 function getCompactRedamanStatus(ticket) {
-  // 1. Ekstrak onu_rx numerik jika ada
+  // 0. Jika belum pernah diukur sama sekali, langsung 'Belum Diukur'
+  const hasMeasurement = Boolean(
+    ticket.redaman_at ||
+    (ticket.onu_status && ticket.onu_status.trim()) ||
+    (ticket.onu_rx !== null && ticket.onu_rx !== undefined && ticket.onu_rx !== '') ||
+    (ticket.result_text && ticket.result_text.trim())
+  );
+
+  if (!hasMeasurement) {
+    return {
+      type: 'unmeasured',
+      text: 'Belum Diukur ⏳',
+      badgeClass: 'status-unmeasured',
+    };
+  }
+
+  const onuStatus = (ticket.onu_status || '').toUpperCase();
+  const measureResult = (ticket.result_text || '').toUpperCase();
+
+  // 1. Cek status jika user internet tidak ditemukan
+  if (
+    onuStatus.includes('TIDAK DITEMUKAN') ||
+    onuStatus.includes('BELUM TERDAFTAR') ||
+    measureResult.includes('TIDAK MENEMUKAN POSISI PERANGKAT') ||
+    measureResult.includes('USER INTERNET TIDAK DITEMUKAN')
+  ) {
+    return {
+      type: 'not_found',
+      text: 'St: Tidak Ditemukan ❓',
+      badgeClass: 'status-unspec',
+    };
+  }
+
+  // 2. Cek LOS / Offline / Dying Gasp dari hasil ukur
+  if (
+    onuStatus.includes('LOS') ||
+    onuStatus.includes('OFFLINE') ||
+    onuStatus.includes('DYING') ||
+    /\bLOS\b/.test(measureResult) ||
+    /\bOFFLINE\b/.test(measureResult) ||
+    /\bDYING\s*GASP\b/.test(measureResult)
+  ) {
+    return {
+      type: 'los',
+      text: 'St: LOS ❌',
+      badgeClass: 'status-los',
+    };
+  }
+
+  // 3. Ekstrak rxVal numerik jika ada
   let rxVal = null;
   if (ticket.onu_rx !== null && ticket.onu_rx !== undefined && ticket.onu_rx !== '') {
     const parsed = parseFloat(String(ticket.onu_rx).replace(/[^\d.-]/g, ''));
@@ -144,34 +193,6 @@ function getCompactRedamanStatus(ticket) {
       const parsed = parseFloat(m[1]);
       if (!isNaN(parsed)) rxVal = parsed;
     }
-  }
-
-  // 2. Status string
-  const onuStatus = (ticket.onu_status || '').toUpperCase();
-  const rawText = `${ticket.raw_input || ''} ${ticket.rest || ''} ${ticket.gangguan || ''} ${ticket.result_text || ''}`.toUpperCase();
-
-  // 2.5 Cek status jika user internet tidak ditemukan
-  if (onuStatus.includes('TIDAK DITEMUKAN') || onuStatus.includes('BELUM TERDAFTAR') || rawText.includes('TIDAK MENEMUKAN POSISI PERANGKAT')) {
-    return {
-      type: 'not_found',
-      text: 'St: Tidak Ditemukan ❓',
-      badgeClass: 'status-unspec',
-    };
-  }
-
-  // 3. Cek LOS / Offline / Putus terlebih dahulu
-  if (
-    onuStatus.includes('LOS') ||
-    onuStatus.includes('OFFLINE') ||
-    onuStatus.includes('DYING') ||
-    /-\s*‼️/.test(rawText) ||
-    /\bLOS\b/.test(rawText)
-  ) {
-    return {
-      type: 'los',
-      text: 'St: LOS ❌',
-      badgeClass: 'status-los',
-    };
   }
 
   // 4. Jika ada rxVal:
@@ -192,8 +213,8 @@ function getCompactRedamanStatus(ticket) {
     }
   }
 
-  // 5. Cek apakah online berdasarkan onu_status atau teks
-  if (onuStatus.includes('ONLINE') || /\bONLINE\b/.test(rawText)) {
+  // 5. Cek apakah online berdasarkan status ukur
+  if (onuStatus.includes('ONLINE') || /\bONLINE\b/.test(measureResult)) {
     return {
       type: 'online',
       text: 'St: ONLINE ✅',
@@ -201,16 +222,7 @@ function getCompactRedamanStatus(ticket) {
     };
   }
 
-  // 6. Belum diukur
-  if (!ticket.redaman_at && !ticket.onu_status && !ticket.onu_rx) {
-    return {
-      type: 'unmeasured',
-      text: 'Belum Diukur ⏳',
-      badgeClass: 'status-unmeasured',
-    };
-  }
-
-  // Fallback
+  // 6. Fallback
   return {
     type: 'unmeasured',
     text: `St: ${ticket.onu_status || 'Belum Diukur'}`,
