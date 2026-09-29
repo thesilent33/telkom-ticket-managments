@@ -52,7 +52,7 @@ function formatLastUpdated(dateStr) {
     rel = `${h}j ${m}m lalu`;
   } else {
     const days = Math.floor(diffMin / 1440);
-    rel = `${days}h lalu`;
+    rel = `${days} hari lalu`;
   }
   const day = String(d.getDate()).padStart(2, '0');
   const mon = String(d.getMonth() + 1).padStart(2, '0');
