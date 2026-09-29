@@ -1227,76 +1227,124 @@ async function handleBatchCopy() {
   const selectedTickets = tickets.filter(t => selectedBatchIds.has(t.id));
   const count = selectedTickets.length;
 
-  const generateText = (format) => {
-    if (format === 'csv') {
-      return selectedTickets.map(t => {
-        const inc = (t.inc || '').trim();
-        const user = (t.inet || '').trim();
-        const odp = (t.odp || '').trim();
-        return `${inc},${user},${odp}`;
-      }).join('\n');
-    }
-    if (format === 'tab') {
-      return selectedTickets.map(t => {
-        const inc = (t.inc || '').trim();
-        const user = (t.inet || '').trim();
-        const odp = (t.odp || '').trim();
-        return `${inc}\t${user}\t${odp}`;
-      }).join('\n');
-    }
-    // format === 'inc'
-    return selectedTickets
-      .map(t => (t.inc || t.inet || '').trim())
-      .filter(Boolean)
-      .join('\n');
+  const FIELD_DEFS = [
+    { key: 'inc',       label: '🎫 No. Tiket (INC)',    get: t => (t.inc || '').trim() },
+    { key: 'inet',      label: '🌐 No. Internet/User',  get: t => (t.inet || '').trim() },
+    { key: 'odp',       label: '📦 ODP',                get: t => (t.odp || '').trim() },
+    { key: 'nama',      label: '👤 Nama Pelanggan',     get: t => (t.nama || '').trim() },
+    { key: 'telp',      label: '📞 No. Telepon',        get: t => (t.telp || '').trim() },
+    { key: 'alamat',    label: '🏠 Alamat',             get: t => (t.alamat || '').trim() },
+    { key: 'optik',     label: '📡 Status Optik/Rx',    get: t => (t.onu_rx ? `${t.onu_status || 'ONLINE'} (${t.onu_rx} dBm)` : t.onu_status || '').trim() },
+    { key: 'teknisi',   label: '👷 Teknisi',            get: t => (t.teknisi || '').trim() },
+    { key: 'perbaikan', label: '🔧 Perbaikan/Kendala',  get: t => (t.perbaikan || t.kendala_text || '').trim() },
+    { key: 'tier',      label: '💎 Tier',               get: t => (t.tier || 'REGULER').trim() },
+  ];
+
+  const SEPARATOR_MAP = {
+    comma:   ',',
+    tab:     '\t',
+    pipe:    ' | ',
+    space:   ' ',
+    colon:   ':',
+    newline: '\n',
   };
 
-  let currentFormat = 'csv';
+  let activeKeys = ['inc', 'inet', 'odp'];
+  try {
+    const stored = JSON.parse(localStorage.getItem('ticket_copy_fields'));
+    if (Array.isArray(stored) && stored.length > 0) activeKeys = stored;
+  } catch {}
+
+  let activeSep = localStorage.getItem('ticket_copy_sep') || 'comma';
+
+  const generateText = (keys, sepKey) => {
+    if (!keys || keys.length === 0) return '(Pilih minimal satu kolom data di atas)';
+    const sep = SEPARATOR_MAP[sepKey] ?? ',';
+
+    return selectedTickets.map(t => {
+      const rowVals = keys.map(k => {
+        const def = FIELD_DEFS.find(d => d.key === k);
+        return def ? def.get(t) : '';
+      });
+      return rowVals.join(sep);
+    }).join('\n');
+  };
+
+  const fieldsHtml = FIELD_DEFS.map(d => {
+    const isChecked = activeKeys.includes(d.key);
+    return `
+      <label class="copy-field-chip ${isChecked ? 'active' : ''}" data-field="${d.key}">
+        <input type="checkbox" name="copy-field-opt" value="${d.key}" ${isChecked ? 'checked' : ''}>
+        <span>${d.label}</span>
+      </label>
+    `;
+  }).join('');
 
   showModal(`
     <h3 class="modal-title">📋 Salin Data Tiket (${count} Tiket)</h3>
-    <p class="modal-subtitle">Pilih format data yang ingin disalin ke clipboard:</p>
+    <p class="modal-subtitle">Bebas pilih kombinasi kolom data dan pemisah sesuai kebutuhan:</p>
 
-    <div class="copy-format-list" id="copy-format-list">
-      <label class="copy-format-item active" data-fmt="csv">
-        <input type="radio" name="copy-format" value="csv" checked>
-        <div>
-          <div style="font-weight:600; font-size:0.86rem; color:#1e293b;">Format: tiket,user,ODP (Koma / CSV)</div>
-          <div style="font-size:0.75rem; color:#64748b;">Contoh: <code>INC12345,172418455888,ODP-UBN-FDP/56</code></div>
-        </div>
+    <!-- Preset Cepat -->
+    <div class="copy-preset-row">
+      <span class="copy-preset-label">⚡ Preset:</span>
+      <button type="button" class="btn-copy-preset" data-preset="inc,inet,odp">Tiket, User, ODP</button>
+      <button type="button" class="btn-copy-preset" data-preset="inc">Hanya Tiket</button>
+      <button type="button" class="btn-copy-preset" data-preset="inc,inet">Tiket + User</button>
+      <button type="button" class="btn-copy-preset" data-preset="inet,odp">User + ODP</button>
+      <button type="button" class="btn-copy-preset" data-preset="inc,odp">Tiket + ODP</button>
+      <button type="button" class="btn-copy-preset" data-preset="inc,inet,odp,nama,telp,alamat">Lengkap</button>
+    </div>
+
+    <!-- Pilihan Kolom Data -->
+    <div class="copy-section-title">1. Centang Kolom Data yang Ingin Disalin:</div>
+    <div class="copy-fields-grid" id="copy-fields-grid">
+      ${fieldsHtml}
+    </div>
+
+    <!-- Pilihan Pemisah -->
+    <div class="copy-section-title">2. Pilih Pemisah Antar Kolom:</div>
+    <div class="copy-separators-row" id="copy-separators-row">
+      <label class="copy-sep-chip ${activeSep === 'comma' ? 'active' : ''}">
+        <input type="radio" name="copy-sep-opt" value="comma" ${activeSep === 'comma' ? 'checked' : ''}>
+        <span>Koma ( <code>,</code> )</span>
       </label>
-
-      <label class="copy-format-item" data-fmt="inc">
-        <input type="radio" name="copy-format" value="inc">
-        <div>
-          <div style="font-weight:600; font-size:0.86rem; color:#1e293b;">Nomor Tiket Saja (INC)</div>
-          <div style="font-size:0.75rem; color:#64748b;">Hanya daftar nomor tiket per baris</div>
-        </div>
+      <label class="copy-sep-chip ${activeSep === 'tab' ? 'active' : ''}">
+        <input type="radio" name="copy-sep-opt" value="tab" ${activeSep === 'tab' ? 'checked' : ''}>
+        <span>Tabulasi / Excel ( <code>⇥</code> )</span>
       </label>
-
-      <label class="copy-format-item" data-fmt="tab">
-        <input type="radio" name="copy-format" value="tab">
-        <div>
-          <div style="font-weight:600; font-size:0.86rem; color:#1e293b;">Format Excel / Spreadsheet (Tabulasi)</div>
-          <div style="font-size:0.75rem; color:#64748b;">Otomatis rapi terbagi 3 kolom saat di-paste di Excel/Spreadsheet</div>
-        </div>
+      <label class="copy-sep-chip ${activeSep === 'pipe' ? 'active' : ''}">
+        <input type="radio" name="copy-sep-opt" value="pipe" ${activeSep === 'pipe' ? 'checked' : ''}>
+        <span>Garis Tegak ( <code>|</code> )</span>
+      </label>
+      <label class="copy-sep-chip ${activeSep === 'space' ? 'active' : ''}">
+        <input type="radio" name="copy-sep-opt" value="space" ${activeSep === 'space' ? 'checked' : ''}>
+        <span>Spasi ( <code> </code> )</span>
+      </label>
+      <label class="copy-sep-chip ${activeSep === 'colon' ? 'active' : ''}">
+        <input type="radio" name="copy-sep-opt" value="colon" ${activeSep === 'colon' ? 'checked' : ''}>
+        <span>Titik Dua ( <code>:</code> )</span>
+      </label>
+      <label class="copy-sep-chip ${activeSep === 'newline' ? 'active' : ''}">
+        <input type="radio" name="copy-sep-opt" value="newline" ${activeSep === 'newline' ? 'checked' : ''}>
+        <span>Baris Baru</span>
       </label>
     </div>
 
+    <!-- Live Preview -->
     <div class="modal-section" style="margin-top: 10px;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-        <label class="modal-label" style="margin:0;">Preview Hasil Salin:</label>
-        <span style="font-size:0.72rem; color:#64748b;">${count} baris</span>
+        <label class="modal-label" style="margin:0; font-weight:600;">3. Preview Hasil Salin:</label>
+        <span id="copy-preview-counter" style="font-size:0.72rem; color:#64748b;">${count} tiket</span>
       </div>
-      <textarea id="copy-preview-text" class="modal-input" rows="4" readonly style="font-family:monospace; font-size:0.78rem; background:#f8fafc; color:#334155; resize:none; white-space:pre;"></textarea>
+      <textarea id="copy-preview-text" class="modal-input" rows="4" readonly style="font-family:monospace; font-size:0.76rem; background:#f8fafc; color:#334155; resize:none; white-space:pre; word-break:break-all;"></textarea>
     </div>
   `, {
     confirmLabel: '📋 Salin ke Clipboard',
     cancelLabel: 'Batal',
     onConfirm: async () => {
-      const textToCopy = generateText(currentFormat);
-      if (!textToCopy.trim()) {
-        showToast('⚠️ Data kosong untuk disalin.', 'warning');
+      const textToCopy = generateText(activeKeys, activeSep);
+      if (!textToCopy.trim() || activeKeys.length === 0) {
+        showToast('⚠️ Pilih minimal satu kolom data untuk disalin.', 'warning');
         return;
       }
       try {
@@ -1313,7 +1361,7 @@ async function handleBatchCopy() {
           document.execCommand('copy');
           document.body.removeChild(textArea);
         }
-        showToast(`📋 Berhasil menyalin data ${count} tiket (${currentFormat.toUpperCase()})!`, 'success');
+        showToast(`📋 Berhasil menyalin data ${count} tiket!`, 'success');
       } catch (err) {
         console.error('Gagal copy tiket:', err);
         showToast('❌ Gagal menyalin ke clipboard. Izin browser ditolak.', 'error');
@@ -1323,17 +1371,61 @@ async function handleBatchCopy() {
 
   setTimeout(() => {
     const previewEl = document.getElementById('copy-preview-text');
-    if (previewEl) previewEl.value = generateText(currentFormat);
+    const updatePreview = () => {
+      if (previewEl) previewEl.value = generateText(activeKeys, activeSep);
+      try {
+        localStorage.setItem('ticket_copy_fields', JSON.stringify(activeKeys));
+        localStorage.setItem('ticket_copy_sep', activeSep);
+      } catch {}
+    };
 
-    const items = document.querySelectorAll('#copy-format-list .copy-format-item');
-    items.forEach(item => {
-      item.addEventListener('click', () => {
-        const radio = item.querySelector('input[type="radio"]');
-        if (radio) radio.checked = true;
-        items.forEach(el => el.classList.remove('active'));
-        item.classList.add('active');
-        currentFormat = item.dataset.fmt;
-        if (previewEl) previewEl.value = generateText(currentFormat);
+    updatePreview();
+
+    // Checkbox toggles
+    const fieldChips = document.querySelectorAll('#copy-fields-grid .copy-field-chip');
+    fieldChips.forEach(chip => {
+      const chk = chip.querySelector('input[type="checkbox"]');
+      chip.addEventListener('click', (e) => {
+        if (e.target !== chk) {
+          chk.checked = !chk.checked;
+        }
+        chip.classList.toggle('active', chk.checked);
+
+        activeKeys = Array.from(document.querySelectorAll('#copy-fields-grid input[name="copy-field-opt"]:checked'))
+          .map(el => el.value);
+
+        updatePreview();
+      });
+    });
+
+    // Separator radio toggles
+    const sepChips = document.querySelectorAll('#copy-separators-row .copy-sep-chip');
+    sepChips.forEach(chip => {
+      const rad = chip.querySelector('input[type="radio"]');
+      chip.addEventListener('click', () => {
+        rad.checked = true;
+        sepChips.forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        activeSep = rad.value;
+        updatePreview();
+      });
+    });
+
+    // Preset buttons
+    const presetBtns = document.querySelectorAll('.btn-copy-preset');
+    presetBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const presetKeys = btn.dataset.preset.split(',');
+        activeKeys = [...presetKeys];
+
+        fieldChips.forEach(chip => {
+          const chk = chip.querySelector('input[type="checkbox"]');
+          const isMatched = activeKeys.includes(chk.value);
+          chk.checked = isMatched;
+          chip.classList.toggle('active', isMatched);
+        });
+
+        updatePreview();
       });
     });
   }, 50);

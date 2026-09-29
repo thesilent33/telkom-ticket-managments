@@ -1044,93 +1044,183 @@ body.batch-mode-active .card-batch-select {
   background: rgba(255, 255, 255, 0.15);
 }
 
-/* Modal Copy Format Options */
-.copy-format-list {
+/* Modal Copy Flexible Format */
+.copy-preset-row {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin: 12px 0 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0 12px;
 }
 
-.copy-format-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 10px 14px;
-  background: #f8fafc;
-  border: 1.5px solid #e2e8f0;
-  border-radius: 10px;
+.copy-preset-label {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #475569;
+}
+
+.btn-copy-preset {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-size: 0.72rem;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
-.copy-format-item:hover {
+.btn-copy-preset:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+  border-color: #94a3b8;
+}
+
+.copy-section-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 6px;
+}
+
+.copy-fields-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.copy-field-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 9px;
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.74rem;
+  font-weight: 500;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.copy-field-chip:hover {
   background: #f1f5f9;
   border-color: #cbd5e1;
 }
 
-.copy-format-item.active {
+.copy-field-chip.active {
   background: #eef2ff;
   border-color: #6366f1;
-  box-shadow: 0 0 0 1px #6366f1;
+  color: #3730a3;
+  font-weight: 600;
 }
 
-.copy-format-item input[type="radio"] {
-  margin-top: 3px;
+.copy-field-chip input[type="checkbox"] {
   accent-color: #4f46e5;
   cursor: pointer;
+  margin: 0;
+}
+
+.copy-separators-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.copy-sep-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 9px;
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.74rem;
+  font-weight: 500;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.copy-sep-chip:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.copy-sep-chip.active {
+  background: #eef2ff;
+  border-color: #6366f1;
+  color: #3730a3;
+  font-weight: 600;
+}
+
+.copy-sep-chip input[type="radio"] {
+  accent-color: #4f46e5;
+  cursor: pointer;
+  margin: 0;
 }
 
 @media (max-width: 640px) {
   .batch-action-bar {
-    width: calc(100% - 16px);
-    max-width: calc(100vw - 16px);
-    bottom: 12px;
-    padding: 6px 8px 6px 12px;
-    gap: 6px;
+    width: calc(100% - 12px);
+    max-width: calc(100vw - 12px);
+    bottom: 10px;
+    padding: 5px 6px 5px 8px;
+    gap: 4px;
     border-radius: 999px;
   }
   .batch-bar-left {
-    gap: 6px;
+    gap: 4px;
     flex-shrink: 0;
   }
   .btn-batch-select-all {
-    padding: 4px 8px;
-    font-size: 0.72rem;
-    gap: 3px;
+    padding: 3px 6px;
+    font-size: 0.68rem;
+    gap: 2px;
   }
   .batch-selected-count {
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     color: #e2e8f0;
     font-weight: 600;
   }
   .batch-bar-right {
-    gap: 4px;
-    flex-shrink: 0;
+    gap: 3px;
+    flex-shrink: 1;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .batch-bar-right::-webkit-scrollbar {
+    display: none;
   }
   .btn-batch-action {
-    padding: 5px 8px;
-    font-size: 0.72rem;
-    gap: 3px;
+    padding: 4px 6px;
+    font-size: 0.68rem;
+    gap: 2px;
   }
   .btn-batch-cancel {
-    padding: 3px 5px;
-    font-size: 0.85rem;
+    padding: 2px 4px;
+    font-size: 0.8rem;
     flex-shrink: 0;
   }
 }
 
 @media (max-width: 360px) {
   .batch-action-bar {
-    padding: 4px 6px 4px 8px;
-    gap: 3px;
+    padding: 3px 4px 3px 6px;
+    gap: 2px;
   }
   .btn-batch-select-all {
-    padding: 3px 6px;
+    padding: 2px 4px;
   }
   .btn-batch-action {
-    padding: 4px 6px;
-  }
+    padding: 3px 4px;
+}
 }
 
 /* ─── Floating Actions Bar (Detail & Tambah Tiket) ────────────────── */
