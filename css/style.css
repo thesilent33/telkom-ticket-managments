@@ -693,6 +693,27 @@ code {
   box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
 }
 
+.input-custom-date {
+  border: 1.5px solid #cbd5e1;
+  background: white;
+  color: #1e293b;
+  border-radius: 999px;
+  padding: 0 10px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  height: 32px;
+  outline: none;
+  font-family: inherit;
+  cursor: pointer;
+  transition: var(--transition);
+  margin-left: 4px;
+}
+
+.input-custom-date:focus, .input-custom-date:hover {
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+}
+
 /* ── Search Box ──────────────────────────────────────────────────── */
 .filter-search-group {
   flex-shrink: 0;

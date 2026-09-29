@@ -17,14 +17,39 @@ function getClient() {
   return _supabase;
 }
 
-// ─── Fetch all tickets (ordered by sort_order, created_at) ───────────────────
-async function fetchTickets() {
-  const { data, error } = await getClient()
+// ─── Fetch tickets (ordered by sort_order, created_at) ───────────────────
+async function fetchTickets(options = {}) {
+  let query = getClient()
     .from('tickets')
     .select('*')
     .order('sort_order', { ascending: true })
     .order('created_at', { ascending: true });
 
+  if (options.since) {
+    query = query.or(`status.neq.done,updated_at.gte.${options.since},created_at.gte.${options.since}`);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return data ?? [];
+}
+
+// ─── Fetch done tickets by date range on-demand ──────────────────────────────
+async function fetchDoneTickets(startDateIso, endDateIso) {
+  let query = getClient()
+    .from('tickets')
+    .select('*')
+    .eq('status', 'done')
+    .order('updated_at', { ascending: false });
+
+  if (startDateIso) {
+    query = query.gte('updated_at', startDateIso);
+  }
+  if (endDateIso) {
+    query = query.lte('updated_at', endDateIso);
+  }
+
+  const { data, error } = await query;
   if (error) throw error;
   return data ?? [];
 }
@@ -82,4 +107,4 @@ function subscribeToTickets(callback) {
     .subscribe();
 }
 
-export { fetchTickets, addTickets, updateTicket, deleteTicket, subscribeToTickets };
+export { fetchTickets, fetchDoneTickets, addTickets, updateTicket, deleteTicket, subscribeToTickets };

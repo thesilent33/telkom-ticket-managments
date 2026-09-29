@@ -3,7 +3,7 @@
  */
 
 import { parseTickets } from './parser.js';
-import { fetchTickets, addTickets, updateTicket, deleteTicket, subscribeToTickets } from './supabase-client.js';
+import { fetchTickets, fetchDoneTickets, addTickets, updateTicket, deleteTicket, subscribeToTickets } from './supabase-client.js';
 import { ukurRedaman } from './lensa.js';
 import {
   renderAllTickets, updateCardInPlace, removeCard, insertCard,
@@ -11,7 +11,7 @@ import {
   modalAddTicket, modalDone, modalKendala, modalRekap,
   modalManageGroups, renderGroupTabs,
   updateAllTimers, updateStats, saveTechnicianName,
-  getCompactRedamanStatus,
+  getCompactRedamanStatus, getDateRangeBounds, isTicketInDateRange,
 } from './ui.js';
 
 // ─── Filter State Storage ─────────────────────────────────────────────────────
@@ -19,27 +19,31 @@ function loadStoredFilterState() {
   try {
     const saved = JSON.parse(localStorage.getItem('ticket_active_filter') || '{}');
     return {
-      status:  saved.status  || 'all',
-      tier:    saved.tier    || 'all',
-      optical: saved.optical || 'all',
-      sort:    saved.sort    || 'ttr_desc',
-      group:   saved.group   || 'all',
-      search:  saved.search  || '',
+      status:     saved.status     || 'all',
+      tier:       saved.tier       || 'all',
+      optical:    saved.optical    || 'all',
+      sort:       saved.sort       || 'ttr_desc',
+      group:      saved.group      || 'all',
+      search:     saved.search     || '',
+      dateRange:  saved.dateRange  || 'today',
+      customDate: saved.customDate || '',
     };
   } catch {
-    return { status: 'all', tier: 'all', optical: 'all', sort: 'ttr_desc', group: 'all', search: '' };
+    return { status: 'all', tier: 'all', optical: 'all', sort: 'ttr_desc', group: 'all', search: '', dateRange: 'today', customDate: '' };
   }
 }
 
 function saveFilterState() {
   try {
     localStorage.setItem('ticket_active_filter', JSON.stringify({
-      status:  activeFilter.status,
-      tier:    activeFilter.tier,
-      optical: activeFilter.optical,
-      sort:    activeFilter.sort,
-      group:   activeFilter.group,
-      search:  activeFilter.search,
+      status:     activeFilter.status,
+      tier:       activeFilter.tier,
+      optical:    activeFilter.optical,
+      sort:       activeFilter.sort,
+      group:      activeFilter.group,
+      search:     activeFilter.search,
+      dateRange:  activeFilter.dateRange,
+      customDate: activeFilter.customDate,
     }));
   } catch (e) {
     console.error('Gagal menyimpan status filter:', e);
@@ -171,6 +175,12 @@ function getFilteredTickets() {
       return true;
     });
   }
+
+  // Filter Tanggal / Periode
+  const bounds = getDateRangeBounds(activeFilter.dateRange, activeFilter.customDate);
+  if (bounds) {
+    list = list.filter(t => isTicketInDateRange(t, bounds));
+  }
   if (activeFilter.search && activeFilter.search.trim()) {
     const q = activeFilter.search.trim().toLowerCase();
     list = list.filter(t => {
@@ -282,11 +292,44 @@ function setBatchMode(active) {
   updateBatchActionBar();
 }
 
+// ─── On-demand archive loader ─────────────────────────────────────────────────
+async function ensureDoneTicketsLoaded(dateRange, customDate) {
+  const bounds = getDateRangeBounds(dateRange, customDate);
+  showLoading(true);
+  try {
+    let startIso = null;
+    let endIso = null;
+    if (bounds) {
+      startIso = bounds.start.toISOString();
+      endIso = bounds.end.toISOString();
+    }
+    const fetched = await fetchDoneTickets(startIso, endIso);
+    if (fetched && fetched.length > 0) {
+      mergeGroupsIntoTickets(fetched);
+      for (const t of fetched) {
+        const existingIdx = tickets.findIndex(x => x.id === t.id);
+        if (existingIdx !== -1) {
+          tickets[existingIdx] = t;
+        } else {
+          tickets.push(t);
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Gagal mengambil arsip tiket:', err);
+    showToast('⚠️ Gagal mengambil arsip tiket dari server.', 'error');
+  } finally {
+    showLoading(false);
+  }
+}
+
 // ─── Init ─────────────────────────────────────────────────────────────────────
 async function init() {
   showLoading(true);
   try {
-    tickets = await fetchTickets();
+    const bounds = getDateRangeBounds(activeFilter.dateRange, activeFilter.customDate);
+    const since = bounds ? bounds.start.toISOString() : null;
+    tickets = await fetchTickets(since ? { since } : {});
     customGroups = loadStoredCustomGroups();
     mergeGroupsIntoTickets(tickets);
 
@@ -298,7 +341,7 @@ async function init() {
 
     renderGroupTabs(customGroups, activeFilter.group, tickets);
     renderCurrentView();
-    updateStats(getGroupTickets());
+    updateStats(getGroupTickets(), activeFilter);
     updateUkurAllButton();
   } catch (e) {
     showToast('❌ Gagal memuat tiket dari Supabase. Cek config.js!', 'error');
@@ -585,6 +628,50 @@ async function init() {
     });
   }
 
+  // Filter Periode / Tanggal dropdown
+  const selectDateRange = document.getElementById('select-date-range');
+  const inputCustomDate = document.getElementById('input-custom-date');
+  if (selectDateRange) {
+    selectDateRange.value = activeFilter.dateRange || 'today';
+    if (inputCustomDate) {
+      inputCustomDate.style.display = activeFilter.dateRange === 'custom' ? 'inline-block' : 'none';
+      if (activeFilter.customDate) {
+        inputCustomDate.value = activeFilter.customDate;
+      }
+    }
+
+    selectDateRange.addEventListener('change', async (e) => {
+      activeFilter.dateRange = e.target.value;
+      if (inputCustomDate) {
+        inputCustomDate.style.display = activeFilter.dateRange === 'custom' ? 'inline-block' : 'none';
+        if (activeFilter.dateRange === 'custom') {
+          if (!inputCustomDate.value) {
+            const todayStr = new Date().toISOString().slice(0, 10);
+            inputCustomDate.value = todayStr;
+            activeFilter.customDate = todayStr;
+          }
+          inputCustomDate.focus();
+        }
+      }
+      saveFilterState();
+      await ensureDoneTicketsLoaded(activeFilter.dateRange, activeFilter.customDate);
+      renderCurrentView();
+      updateStats(getGroupTickets(), activeFilter);
+      updateUkurAllButton();
+    });
+  }
+
+  if (inputCustomDate) {
+    inputCustomDate.addEventListener('change', async (e) => {
+      activeFilter.customDate = e.target.value;
+      saveFilterState();
+      await ensureDoneTicketsLoaded('custom', activeFilter.customDate);
+      renderCurrentView();
+      updateStats(getGroupTickets(), activeFilter);
+      updateUkurAllButton();
+    });
+  }
+
   // Tombol Ukur Semua
   const btnUkurAll = document.getElementById('btn-ukur-all');
   if (btnUkurAll) {
@@ -606,7 +693,7 @@ function handleRealtimeChange({ eventType, old: oldRow, new: newRow }) {
       tickets.push(newRow);
       renderGroupTabs(customGroups, activeFilter.group, tickets);
       renderCurrentView();
-      updateStats(getGroupTickets());
+      updateStats(getGroupTickets(), activeFilter);
       updateBatchActionBar();
     }
   } else if (eventType === 'UPDATE') {
@@ -621,7 +708,7 @@ function handleRealtimeChange({ eventType, old: oldRow, new: newRow }) {
     }
     updateCardInPlace(newRow, isCardCollapsed(newRow.id), isBatchMode, selectedBatchIds.has(newRow.id));
     renderGroupTabs(customGroups, activeFilter.group, tickets);
-    updateStats(getGroupTickets());
+    updateStats(getGroupTickets(), activeFilter);
     updateBatchActionBar();
     updateUkurAllButton();
   } else if (eventType === 'DELETE') {
@@ -629,7 +716,7 @@ function handleRealtimeChange({ eventType, old: oldRow, new: newRow }) {
     selectedBatchIds.delete(oldRow.id);
     removeCard(oldRow.id);
     renderGroupTabs(customGroups, activeFilter.group, tickets);
-    updateStats(getGroupTickets());
+    updateStats(getGroupTickets(), activeFilter);
     updateBatchActionBar();
     updateUkurAllButton();
   }
@@ -923,7 +1010,7 @@ async function handleAddTicket() {
     if (enrichedCount > 0 || updatedDupeGroupCount > 0) {
       renderGroupTabs(customGroups, activeFilter.group, tickets);
       renderCurrentView();
-      updateStats(getGroupTickets());
+      updateStats(getGroupTickets(), activeFilter);
       updateUkurAllButton();
 
       const msgs = [];
@@ -993,7 +1080,7 @@ async function handleAddTicket() {
 
     renderGroupTabs(customGroups, activeFilter.group, tickets);
     renderCurrentView();
-    updateStats(getGroupTickets());
+    updateStats(getGroupTickets(), activeFilter);
     updateUkurAllButton();
 
     const groupNote = (selectedGroups.length > 0)
@@ -1326,7 +1413,7 @@ async function handleBatchDone() {
   selectedBatchIds.clear();
   showLoading(false);
   renderGroupTabs(customGroups, activeFilter.group, tickets);
-  updateStats(getGroupTickets());
+  updateStats(getGroupTickets(), activeFilter);
   updateBatchActionBar();
   renderCurrentView();
   showToast(`✅ ${successCount} dari ${count} tiket berhasil ditandai Selesai!`, 'success');
@@ -1406,7 +1493,7 @@ async function handleBatchGroup() {
 
       selectedBatchIds.clear();
       renderGroupTabs(customGroups, activeFilter.group, tickets);
-      updateStats(getGroupTickets());
+      updateStats(getGroupTickets(), activeFilter);
       updateBatchActionBar();
       renderCurrentView();
       if (checkedGroups.length > 0) {
@@ -1499,7 +1586,7 @@ async function handleBatchDelete() {
       selectedBatchIds.clear();
       showLoading(false);
       renderGroupTabs(customGroups, activeFilter.group, tickets);
-      updateStats(getGroupTickets());
+      updateStats(getGroupTickets(), activeFilter);
       updateBatchActionBar();
       renderCurrentView();
       showToast(`🗑️ ${successCount} dari ${count} tiket berhasil dihapus.`, 'info');
@@ -1986,7 +2073,7 @@ function handleDelete(ticket) {
         selectedBatchIds.delete(ticket.id);
         removeCard(ticket.id);
         renderGroupTabs(customGroups, activeFilter.group, tickets);
-        updateStats(getGroupTickets());
+        updateStats(getGroupTickets(), activeFilter);
         updateBatchActionBar();
         updateUkurAllButton();
         showToast('🗑️ Tiket dihapus', 'info');
@@ -2055,7 +2142,7 @@ function handleDeleteGroup(groupName) {
 
   renderGroupTabs(customGroups, activeFilter.group, tickets);
   renderCurrentView();
-  updateStats(getGroupTickets());
+  updateStats(getGroupTickets(), activeFilter);
   updateUkurAllButton();
   showToast(`🗑️ Grup "${groupName}" telah dihapus.`, 'success');
 }
@@ -2075,7 +2162,7 @@ async function handleManageGroups(ticket) {
       await saveTicketGroups(ticket.id, checked);
       updateCardInPlace(ticket);
       renderGroupTabs(customGroups, activeFilter.group, tickets);
-      updateStats(getGroupTickets());
+      updateStats(getGroupTickets(), activeFilter);
       updateUkurAllButton();
       showToast('📁 Grup tiket berhasil diperbarui!', 'success');
     }

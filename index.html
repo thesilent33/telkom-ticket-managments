@@ -24,7 +24,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 
   <!-- Custom CSS -->
-  <link rel="stylesheet" href="css/style.css?v=3.2">
+  <link rel="stylesheet" href="css/style.css?v=3.3">
 </head>
 <body>
 
@@ -157,6 +157,22 @@
         <option value="created_desc">🕒 Baru Ditambahkan</option>
       </select>
     </div>
+
+    <div class="filter-divider"></div>
+
+    <!-- Filter Periode / Tanggal -->
+    <div class="filter-group" style="align-items: center;">
+      <label for="select-date-range" class="sort-label">📅 Periode:</label>
+      <select id="select-date-range" class="select-sort select-date" aria-label="Filter periode tanggal tiket">
+        <option value="today" selected>📅 Hari Ini</option>
+        <option value="yesterday">⏪ Kemarin</option>
+        <option value="7days">🗓️ 7 Hari Terakhir</option>
+        <option value="30days">🗓️ 30 Hari Terakhir</option>
+        <option value="all">🌐 Semua Riwayat</option>
+        <option value="custom">📆 Pilih Tanggal...</option>
+      </select>
+      <input type="date" id="input-custom-date" class="input-custom-date" style="display:none;" title="Pilih tanggal spesifik">
+    </div>
   </div>
 
 </div>
@@ -237,7 +253,7 @@
 <!-- Di-render oleh JS saat dibutuhkan -->
 
 <!-- ── Scripts (ES Modules) ───────────────────────────────────────── -->
-<script type="module" src="js/app.js?v=3.2"></script>
+<script type="module" src="js/app.js?v=3.3"></script>
 
 <!-- ── Inline: update ticket summary header ──────────────────────── -->
 <script type="module">

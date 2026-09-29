@@ -813,11 +813,77 @@ function updateAllTimers(allTickets = []) {
   });
 }
 
+// ─── Date Range Helpers ───────────────────────────────────────────────────────
+
+function getDateRangeBounds(dateRange = 'today', customDateStr = '') {
+  if (!dateRange || dateRange === 'all') return null;
+
+  const now = new Date();
+  const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+  const endToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
+  if (dateRange === 'today') {
+    return { start: startToday, end: endToday };
+  }
+
+  if (dateRange === 'yesterday') {
+    const startYesterday = new Date(startToday);
+    startYesterday.setDate(startYesterday.getDate() - 1);
+    const endYesterday = new Date(startYesterday);
+    endYesterday.setHours(23, 59, 59, 999);
+    return { start: startYesterday, end: endYesterday };
+  }
+
+  if (dateRange === '7days') {
+    const start7 = new Date(startToday);
+    start7.setDate(start7.getDate() - 6);
+    return { start: start7, end: endToday };
+  }
+
+  if (dateRange === '30days') {
+    const start30 = new Date(startToday);
+    start30.setDate(start30.getDate() - 29);
+    return { start: start30, end: endToday };
+  }
+
+  if (dateRange === 'custom' && customDateStr) {
+    const parts = customDateStr.split('-').map(Number);
+    if (parts.length === 3) {
+      const startCustom = new Date(parts[0], parts[1] - 1, parts[2], 0, 0, 0, 0);
+      const endCustom = new Date(parts[0], parts[1] - 1, parts[2], 23, 59, 59, 999);
+      return { start: startCustom, end: endCustom };
+    }
+  }
+
+  return null;
+}
+
+function isTicketInDateRange(t, bounds) {
+  if (!bounds) return true;
+
+  // Tiket AKTIF (open / kendala) selalu tampil agar tidak ada pekerjaan tertunda yang tersembunyi
+  if (t.status !== 'done') {
+    return true;
+  }
+
+  // Untuk tiket 'done': gunakan updated_at (waktu penyelesaian), fallback redaman_at / created_at
+  const dateStr = t.updated_at || t.redaman_at || t.created_at;
+  if (!dateStr) return true;
+
+  const tDate = new Date(dateStr);
+  return tDate >= bounds.start && tDate <= bounds.end;
+}
+
 // ─── Update filter stats ──────────────────────────────────────────────────────
 
 function updateStats(tickets, filter = {}) {
-  // 1. Status counts (filter by active tier and active optical, if set)
+  const bounds = getDateRangeBounds(filter.dateRange, filter.customDate);
+
+  // 1. Status counts (filter by active tier, optical, and dateRange)
   let forStatus = tickets;
+  if (bounds) {
+    forStatus = forStatus.filter(t => isTicketInDateRange(t, bounds));
+  }
   if (filter.tier && filter.tier !== 'all') {
     forStatus = forStatus.filter(t => t.tier === filter.tier);
   }
@@ -840,8 +906,11 @@ function updateStats(tickets, filter = {}) {
     if (el) el.textContent = counts[k];
   });
 
-  // 2. Tier counts (filter by active status and active optical, if set)
+  // 2. Tier counts (filter by active status, optical, and dateRange)
   let forTier = tickets;
+  if (bounds) {
+    forTier = forTier.filter(t => isTicketInDateRange(t, bounds));
+  }
   if (filter.status && filter.status !== 'all') {
     forTier = forTier.filter(t => t.status === filter.status);
   }
@@ -878,8 +947,11 @@ function updateStats(tickets, filter = {}) {
     if (el) el.textContent = tierCounts[k];
   });
 
-  // 3. Optical condition counts (filter by active status and active tier, if set)
+  // 3. Optical condition counts (filter by active status, tier, and dateRange)
   let forOptical = tickets;
+  if (bounds) {
+    forOptical = forOptical.filter(t => isTicketInDateRange(t, bounds));
+  }
   if (filter.status && filter.status !== 'all') {
     forOptical = forOptical.filter(t => t.status === filter.status);
   }
@@ -991,4 +1063,6 @@ export {
   getCompactRedamanStatus,
   getSavedTechnicians,
   saveTechnicianName,
+  getDateRangeBounds,
+  isTicketInDateRange,
 };
