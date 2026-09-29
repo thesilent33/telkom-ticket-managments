@@ -24,7 +24,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 
   <!-- Custom CSS -->
-  <link rel="stylesheet" href="css/style.css?v=3.1">
+  <link rel="stylesheet" href="css/style.css?v=3.2">
 </head>
 <body>
 
@@ -183,6 +183,9 @@
     <button class="btn-batch-action btn-batch-copy" id="btn-batch-copy" disabled title="Salin nomor tiket yang dipilih ke clipboard (per baris)">
       <span>📋</span> <span class="hide-mobile">Copy </span>(<span id="batch-count-copy">0</span>)
     </button>
+    <button class="btn-batch-action btn-batch-done" id="btn-batch-done" disabled title="Tandai tiket yang dipilih sebagai Selesai">
+      <span>✅</span> <span class="hide-mobile">Selesai </span>(<span id="batch-count-done">0</span>)
+    </button>
     <button class="btn-batch-action btn-batch-group" id="btn-batch-group" disabled title="Masukkan tiket terpilih ke grup">
       <span>📁</span> <span class="hide-mobile">Grup </span>(<span id="batch-count-group">0</span>)
     </button>
@@ -234,7 +237,7 @@
 <!-- Di-render oleh JS saat dibutuhkan -->
 
 <!-- ── Scripts (ES Modules) ───────────────────────────────────────── -->
-<script type="module" src="js/app.js?v=3.1"></script>
+<script type="module" src="js/app.js?v=3.2"></script>
 
 <!-- ── Inline: update ticket summary header ──────────────────────── -->
 <script type="module">

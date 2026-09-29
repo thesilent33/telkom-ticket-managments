@@ -228,6 +228,11 @@ function updateBatchActionBar() {
   if (countCopyEl) countCopyEl.textContent = countSelected;
   if (btnCopy) btnCopy.disabled = countSelected === 0;
 
+  const btnDone = document.getElementById('btn-batch-done');
+  const countDoneEl = document.getElementById('batch-count-done');
+  if (countDoneEl) countDoneEl.textContent = countSelected;
+  if (btnDone) btnDone.disabled = countSelected === 0;
+
   const btnGroup = document.getElementById('btn-batch-group');
   const countGroupEl = document.getElementById('batch-count-group');
   if (countGroupEl) countGroupEl.textContent = countSelected;
@@ -480,6 +485,12 @@ async function init() {
     btnBatchCopy.addEventListener('click', handleBatchCopy);
   }
 
+  // Batch Action Bar: Tandai Selesai
+  const btnBatchDone = document.getElementById('btn-batch-done');
+  if (btnBatchDone) {
+    btnBatchDone.addEventListener('click', handleBatchDone);
+  }
+
   // Batch Action Bar: Masukkan ke Grup
   const btnBatchGroup = document.getElementById('btn-batch-group');
   if (btnBatchGroup) {
@@ -697,6 +708,61 @@ function handleInput(e) {
   }
 }
 
+// ─── Helper: Perbarui tiket lama jika tiket duplikat membawa info baru ────────
+async function enrichExistingTicketIfPossible(existingTicket, newParsedTicket) {
+  if (!existingTicket || !newParsedTicket) return false;
+  const changes = {};
+
+  if (!existingTicket.inet && newParsedTicket.inet) {
+    changes.inet = newParsedTicket.inet;
+  }
+  if (!existingTicket.odp && newParsedTicket.odp) {
+    changes.odp = newParsedTicket.odp;
+  }
+  if (!existingTicket.inc && newParsedTicket.inc) {
+    changes.inc = newParsedTicket.inc;
+  }
+  if (!existingTicket.nama && newParsedTicket.nama) {
+    changes.nama = newParsedTicket.nama;
+  }
+  if (!existingTicket.telp && newParsedTicket.telp) {
+    changes.telp = newParsedTicket.telp;
+  }
+  if (!existingTicket.alamat && newParsedTicket.alamat) {
+    changes.alamat = newParsedTicket.alamat;
+  }
+  if (!existingTicket.gangguan && newParsedTicket.gangguan) {
+    changes.gangguan = newParsedTicket.gangguan;
+  }
+  if ((!existingTicket.tier || existingTicket.tier === 'REGULER') && newParsedTicket.tier && newParsedTicket.tier !== 'REGULER') {
+    changes.tier = newParsedTicket.tier;
+  }
+  if (!existingTicket.reported_at && newParsedTicket.reported_at) {
+    changes.reported_at = newParsedTicket.reported_at;
+  }
+  if (!existingTicket.sla_deadline && newParsedTicket.sla_deadline) {
+    changes.sla_deadline = newParsedTicket.sla_deadline;
+  }
+  if (newParsedTicket.rest && (!existingTicket.rest || newParsedTicket.rest.length > existingTicket.rest.length)) {
+    changes.rest = newParsedTicket.rest;
+  }
+  if (newParsedTicket.raw_input && (!existingTicket.raw_input || newParsedTicket.raw_input.length > existingTicket.raw_input.length)) {
+    changes.raw_input = newParsedTicket.raw_input;
+  }
+
+  if (Object.keys(changes).length > 0) {
+    try {
+      const updated = await updateTicket(existingTicket.id, changes);
+      Object.assign(existingTicket, updated || changes);
+      updateCardInPlace(existingTicket);
+      return true;
+    } catch (err) {
+      console.error('Gagal memperbarui data baru pada tiket lama:', err);
+    }
+  }
+  return false;
+}
+
 // ─── Action: Tambah Tiket ─────────────────────────────────────────────────────
 async function handleAddTicket() {
   const result = await showInputModal(modalAddTicket(customGroups, activeFilter.group), {
@@ -820,7 +886,17 @@ async function handleAddTicket() {
 
   // Jika semua tiket yang dimasukkan sudah ada di sistem
   if (validTickets.length === 0) {
-    let updatedDupeCount = 0;
+    let updatedDupeGroupCount = 0;
+    let enrichedCount = 0;
+
+    // 1. Perbarui data tiket lama jika input duplikat membawa info baru (misal: nomor inet, ODP, dll)
+    for (const dupe of duplicateTickets) {
+      if (!dupe.existingTicket) continue;
+      const enriched = await enrichExistingTicketIfPossible(dupe.existingTicket, dupe.ticket);
+      if (enriched) enrichedCount++;
+    }
+
+    // 2. Masukkan ke grup jika grup dipilih
     if (selectedGroups.length > 0) {
       for (const dupe of duplicateTickets) {
         if (!dupe.existingTicket) continue;
@@ -839,17 +915,21 @@ async function handleAddTicket() {
         }
         if (changed) {
           await saveTicketGroups(dupe.existingTicket.id, currentGroups);
-          updatedDupeCount++;
+          updatedDupeGroupCount++;
         }
       }
+    }
+
+    if (enrichedCount > 0 || updatedDupeGroupCount > 0) {
       renderGroupTabs(customGroups, activeFilter.group, tickets);
       renderCurrentView();
       updateStats(getGroupTickets());
       updateUkurAllButton();
-    }
 
-    if (updatedDupeCount > 0) {
-      showToast(`📁 ${updatedDupeCount} tiket yang sudah ada berhasil dimasukkan ke grup: ${selectedGroups.join(', ')} (tanpa membuat duplikat).`, 'success');
+      const msgs = [];
+      if (enrichedCount > 0) msgs.push(`🔄 ${enrichedCount} tiket lama diperbarui (inet/ODP/info baru)`);
+      if (updatedDupeGroupCount > 0) msgs.push(`📁 ${updatedDupeGroupCount} tiket masuk ke grup: ${selectedGroups.join(', ')}`);
+      showToast(msgs.join('. ') + '.', 'success');
     } else if (selectedGroups.length > 0) {
       showToast(`⚠️ Tiket sudah ada di sistem dan sudah terdaftar di grup ${selectedGroups.join(', ')}.`, 'info');
     } else if (duplicateTickets.length === 1) {
@@ -876,8 +956,18 @@ async function handleAddTicket() {
       }
     }
 
-    // Auto-merge grup ke tiket yang duplikat jika grup dipilih
-    let updatedDupeCount = 0;
+    // 1. Auto-enrich tiket lama yang duplikat dengan info baru
+    let enrichedCount = 0;
+    if (duplicateTickets.length > 0) {
+      for (const dupe of duplicateTickets) {
+        if (!dupe.existingTicket) continue;
+        const enriched = await enrichExistingTicketIfPossible(dupe.existingTicket, dupe.ticket);
+        if (enriched) enrichedCount++;
+      }
+    }
+
+    // 2. Auto-merge grup ke tiket yang duplikat jika grup dipilih
+    let updatedDupeGroupCount = 0;
     if (selectedGroups.length > 0 && duplicateTickets.length > 0) {
       for (const dupe of duplicateTickets) {
         if (!dupe.existingTicket) continue;
@@ -896,7 +986,7 @@ async function handleAddTicket() {
         }
         if (changed) {
           await saveTicketGroups(dupe.existingTicket.id, currentGroups);
-          updatedDupeCount++;
+          updatedDupeGroupCount++;
         }
       }
     }
@@ -911,12 +1001,14 @@ async function handleAddTicket() {
       : '';
 
     if (duplicateTickets.length > 0) {
-      if (updatedDupeCount > 0) {
-        showToast(`✅ ${validTickets.length} tiket baru ditambahkan${groupNote}. 📁 ${updatedDupeCount} tiket lama otomatis dimasukkan ke grup tersebut.`, 'success');
-      } else {
+      const notes = [`✅ ${validTickets.length} tiket baru ditambahkan${groupNote}`];
+      if (enrichedCount > 0) notes.push(`🔄 ${enrichedCount} tiket lama diperbarui (inet/ODP/info baru)`);
+      if (updatedDupeGroupCount > 0) notes.push(`📁 ${updatedDupeGroupCount} tiket lama otomatis masuk ke grup`);
+      if (enrichedCount === 0 && updatedDupeGroupCount === 0) {
         const dupeLabels = duplicateTickets.map(d => d.label).join(', ');
-        showToast(`✅ ${validTickets.length} tiket ditambahkan${groupNote}. ⚠️ ${duplicateTickets.length} tiket dilewati karena sudah ada: ${dupeLabels}`, 'warning');
+        notes.push(`⚠️ ${duplicateTickets.length} tiket dilewati karena sudah ada: ${dupeLabels}`);
       }
+      showToast(notes.join('. ') + '.', 'success');
     } else {
       showToast(`✅ ${validTickets.length} tiket berhasil ditambahkan${groupNote}!`, 'success');
     }
@@ -1046,35 +1138,198 @@ async function handleBatchCopy() {
   if (selectedBatchIds.size === 0) return;
 
   const selectedTickets = tickets.filter(t => selectedBatchIds.has(t.id));
-  const incList = selectedTickets
-    .map(t => (t.inc || '').trim())
-    .filter(Boolean)
-    .join('\n');
+  const count = selectedTickets.length;
 
-  if (!incList) {
-    showToast('⚠️ Tidak ada nomor tiket (INC) pada tiket yang dipilih.', 'warning');
+  const generateText = (format) => {
+    if (format === 'csv') {
+      return selectedTickets.map(t => {
+        const inc = (t.inc || '').trim();
+        const user = (t.inet || '').trim();
+        const odp = (t.odp || '').trim();
+        return `${inc},${user},${odp}`;
+      }).join('\n');
+    }
+    if (format === 'tab') {
+      return selectedTickets.map(t => {
+        const inc = (t.inc || '').trim();
+        const user = (t.inet || '').trim();
+        const odp = (t.odp || '').trim();
+        return `${inc}\t${user}\t${odp}`;
+      }).join('\n');
+    }
+    // format === 'inc'
+    return selectedTickets
+      .map(t => (t.inc || t.inet || '').trim())
+      .filter(Boolean)
+      .join('\n');
+  };
+
+  let currentFormat = 'csv';
+
+  showModal(`
+    <h3 class="modal-title">📋 Salin Data Tiket (${count} Tiket)</h3>
+    <p class="modal-subtitle">Pilih format data yang ingin disalin ke clipboard:</p>
+
+    <div class="copy-format-list" id="copy-format-list">
+      <label class="copy-format-item active" data-fmt="csv">
+        <input type="radio" name="copy-format" value="csv" checked>
+        <div>
+          <div style="font-weight:600; font-size:0.86rem; color:#1e293b;">Format: tiket,user,ODP (Koma / CSV)</div>
+          <div style="font-size:0.75rem; color:#64748b;">Contoh: <code>INC12345,172418455888,ODP-UBN-FDP/56</code></div>
+        </div>
+      </label>
+
+      <label class="copy-format-item" data-fmt="inc">
+        <input type="radio" name="copy-format" value="inc">
+        <div>
+          <div style="font-weight:600; font-size:0.86rem; color:#1e293b;">Nomor Tiket Saja (INC)</div>
+          <div style="font-size:0.75rem; color:#64748b;">Hanya daftar nomor tiket per baris</div>
+        </div>
+      </label>
+
+      <label class="copy-format-item" data-fmt="tab">
+        <input type="radio" name="copy-format" value="tab">
+        <div>
+          <div style="font-weight:600; font-size:0.86rem; color:#1e293b;">Format Excel / Spreadsheet (Tabulasi)</div>
+          <div style="font-size:0.75rem; color:#64748b;">Otomatis rapi terbagi 3 kolom saat di-paste di Excel/Spreadsheet</div>
+        </div>
+      </label>
+    </div>
+
+    <div class="modal-section" style="margin-top: 10px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+        <label class="modal-label" style="margin:0;">Preview Hasil Salin:</label>
+        <span style="font-size:0.72rem; color:#64748b;">${count} baris</span>
+      </div>
+      <textarea id="copy-preview-text" class="modal-input" rows="4" readonly style="font-family:monospace; font-size:0.78rem; background:#f8fafc; color:#334155; resize:none; white-space:pre;"></textarea>
+    </div>
+  `, {
+    confirmLabel: '📋 Salin ke Clipboard',
+    cancelLabel: 'Batal',
+    onConfirm: async () => {
+      const textToCopy = generateText(currentFormat);
+      if (!textToCopy.trim()) {
+        showToast('⚠️ Data kosong untuk disalin.', 'warning');
+        return;
+      }
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(textToCopy);
+        } else {
+          const textArea = document.createElement('textarea');
+          textArea.value = textToCopy;
+          textArea.style.position = 'fixed';
+          textArea.style.opacity = '0';
+          document.body.appendChild(textArea);
+          textArea.focus();
+          textArea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textArea);
+        }
+        showToast(`📋 Berhasil menyalin data ${count} tiket (${currentFormat.toUpperCase()})!`, 'success');
+      } catch (err) {
+        console.error('Gagal copy tiket:', err);
+        showToast('❌ Gagal menyalin ke clipboard. Izin browser ditolak.', 'error');
+      }
+    }
+  });
+
+  setTimeout(() => {
+    const previewEl = document.getElementById('copy-preview-text');
+    if (previewEl) previewEl.value = generateText(currentFormat);
+
+    const items = document.querySelectorAll('#copy-format-list .copy-format-item');
+    items.forEach(item => {
+      item.addEventListener('click', () => {
+        const radio = item.querySelector('input[type="radio"]');
+        if (radio) radio.checked = true;
+        items.forEach(el => el.classList.remove('active'));
+        item.classList.add('active');
+        currentFormat = item.dataset.fmt;
+        if (previewEl) previewEl.value = generateText(currentFormat);
+      });
+    });
+  }, 50);
+}
+
+async function handleBatchDone() {
+  if (selectedBatchIds.size === 0) return;
+  const targetTickets = tickets.filter(t => selectedBatchIds.has(t.id));
+  const count = targetTickets.length;
+  const savedTechs = getSavedTechnicians();
+
+  const sampleLabels = targetTickets.slice(0, 5).map(t => t.inc || t.inet || 'Tiket').join(', ') + (count > 5 ? ` +${count - 5} lainnya` : '');
+
+  const result = await showInputModal(`
+    <h3 class="modal-title">✅ Tandai ${count} Tiket Selesai</h3>
+    <p class="modal-subtitle">Tiket terpilih: <b>${sampleLabels}</b></p>
+    <div class="modal-section">
+      <label class="modal-label">Perbaikan <span class="required">*</span></label>
+      <input id="input-batch-perbaikan" class="modal-input" type="text"
+        placeholder="cth: Ganti ONT / Perbaikan Dropcore / Selesai Massal" value="">
+    </div>
+    <div class="modal-section">
+      <label class="modal-label">Penyebab <span class="optional">(opsional)</span></label>
+      <input id="input-batch-penyebab" class="modal-input" type="text"
+        placeholder="cth: Gangguan massal pulih / Redaman tinggi" value="">
+    </div>
+    <div class="modal-section">
+      <label class="modal-label">Teknisi (Pilih atau Ketik Baru)</label>
+      <input id="input-batch-teknisi" class="modal-input" type="text"
+        list="teknisi-list-batch-done"
+        placeholder="Pilih atau ketik nama teknisi"
+        value="">
+      <datalist id="teknisi-list-batch-done">
+        ${savedTechs.map(t => `<option value="${t}">`).join('')}
+      </datalist>
+    </div>
+  `, {
+    confirmLabel: `✅ Selesaikan ${count} Tiket`,
+    cancelLabel: 'Batal',
+    getValues: () => ({
+      perbaikan: document.getElementById('input-batch-perbaikan')?.value.trim() ?? '',
+      penyebab:  document.getElementById('input-batch-penyebab')?.value.trim() ?? '',
+      teknisi:   document.getElementById('input-batch-teknisi')?.value.trim() ?? '',
+    }),
+  });
+
+  if (!result) return;
+  if (!result.perbaikan) {
+    showToast('⚠️ Isi dulu kolom Perbaikan!', 'warning');
     return;
   }
 
-  try {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      await navigator.clipboard.writeText(incList);
-    } else {
-      const textArea = document.createElement('textarea');
-      textArea.value = incList;
-      textArea.style.position = 'fixed';
-      textArea.style.opacity = '0';
-      document.body.appendChild(textArea);
-      textArea.focus();
-      textArea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textArea);
-    }
-    showToast(`📋 ${selectedTickets.length} nomor tiket berhasil disalin ke clipboard!`, 'success');
-  } catch (err) {
-    console.error('Gagal copy tiket:', err);
-    showToast('❌ Gagal menyalin ke clipboard. Izin browser ditolak.', 'error');
+  if (result.teknisi) {
+    saveTechnicianName(result.teknisi);
   }
+
+  showLoading(true);
+  let successCount = 0;
+  for (const t of targetTickets) {
+    try {
+      const updated = await updateTicket(t.id, {
+        status:       'done',
+        perbaikan:    result.perbaikan,
+        penyebab:     result.penyebab || null,
+        teknisi:      result.teknisi || t.teknisi || null,
+        kendala_text: null,
+      });
+      const idx = tickets.findIndex(x => x.id === t.id);
+      if (idx !== -1) tickets[idx] = updated;
+      updateCardInPlace(updated);
+      successCount++;
+    } catch (err) {
+      console.error(`Gagal menyelesaikan tiket ${t.inc}:`, err);
+    }
+  }
+
+  selectedBatchIds.clear();
+  showLoading(false);
+  renderGroupTabs(customGroups, activeFilter.group, tickets);
+  updateStats(getGroupTickets());
+  updateBatchActionBar();
+  renderCurrentView();
+  showToast(`✅ ${successCount} dari ${count} tiket berhasil ditandai Selesai!`, 'success');
 }
 
 async function handleBatchGroup() {
