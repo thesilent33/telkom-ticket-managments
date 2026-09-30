@@ -30,11 +30,11 @@
             },
             {
               "name": "nik",
-              "value": "16974028"
+              "value": "ISI_NIK_KAMU"
             },
             {
               "name": "nama",
-              "value": "JONI SUBROTO"
+              "value": "ISI_NAMA_KAMU"
             }
           ]
         },
@@ -43,7 +43,7 @@
           "parameters": [
             {
               "name": "authorization",
-              "value": "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL2xlbnNhLnRhY2MuaWQvYXBpL2xvZ2luIiwiaWF0IjoxNzI4NjIwODczLCJuYmYiOjE3Mjg2MjA4NzMsImp0aSI6IjFjQk9NOXIxbDZtbkVoV0kiLCJzdWIiOiIxIiwicHJ2IjoiMjNiZDVjODk0OWY2MDBhZGIzOWU3MDFjNDAwODcyZGI3YTU5NzZmNyJ9.QF0GB9-RcQ5YMfxeF6sjHPJQDDXM_Qa6NMnNCsm8VoQ"
+              "value": "Bearer ISI_TOKEN_LENSA_KAMU"
             }
           ]
         },

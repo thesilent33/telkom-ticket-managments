@@ -512,6 +512,26 @@ function renderAllTickets(tickets, filter = {}, options = {}) {
       const tA = a.created_at ? new Date(a.created_at).getTime() : 0;
       const tB = b.created_at ? new Date(b.created_at).getTime() : 0;
       return tB - tA;
+    } else if (sortMode === 'odp_asc') {
+      const odpA = (a.odp || '').trim().toUpperCase();
+      const odpB = (b.odp || '').trim().toUpperCase();
+      if (!odpA && odpB) return 1;
+      if (odpA && !odpB) return -1;
+      const cmp = odpA.localeCompare(odpB, undefined, { numeric: true, sensitivity: 'base' });
+      if (cmp !== 0) return cmp;
+      const msA = getElapsedMs(a) ?? -1;
+      const msB = getElapsedMs(b) ?? -1;
+      return msB - msA;
+    } else if (sortMode === 'odp_desc') {
+      const odpA = (a.odp || '').trim().toUpperCase();
+      const odpB = (b.odp || '').trim().toUpperCase();
+      if (!odpA && odpB) return 1;
+      if (odpA && !odpB) return -1;
+      const cmp = odpB.localeCompare(odpA, undefined, { numeric: true, sensitivity: 'base' });
+      if (cmp !== 0) return cmp;
+      const msA = getElapsedMs(a) ?? -1;
+      const msB = getElapsedMs(b) ?? -1;
+      return msB - msA;
     }
     return 0;
   });

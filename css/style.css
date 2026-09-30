@@ -1362,12 +1362,16 @@ body.batch-mode-active .floating-actions {
 
 /* ── Tickets container ───────────────────────────────────────────── */
 #tickets-container {
-  padding: 16px;
+  padding: 16px 16px 85px;
   display: flex;
   flex-direction: column;
   gap: 12px;
   max-width: 860px;
   margin: 0 auto;
+}
+
+body.batch-mode-active #tickets-container {
+  padding-bottom: 110px !important;
 }
 
 /* ── Ticket Card ─────────────────────────────────────────────────── */
@@ -2204,7 +2208,7 @@ body.batch-mode-active .floating-actions {
 @media (min-width: 640px) {
   .app-header { padding: 16px 28px; }
   .app-title { font-size: 1.35rem; }
-  #tickets-container { padding: 20px 24px; max-width: 900px; }
+  #tickets-container { padding: 20px 24px 90px; max-width: 900px; }
 }
 
 @media (min-width: 860px) {
