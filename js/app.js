@@ -3,7 +3,19 @@
  */
 
 import { parseTickets } from './parser.js';
-import { fetchTickets, fetchDoneTickets, addTickets, updateTicket, deleteTicket, subscribeToTickets } from './supabase-client.js';
+import {
+  fetchTickets,
+  fetchDoneTickets,
+  addTickets,
+  updateTicket,
+  deleteTicket,
+  subscribeToTickets,
+  unsubscribeTickets,
+  signIn,
+  signOut,
+  getAuthSession,
+  onAuthStateChange
+} from './supabase-client.js';
 import { ukurRedaman } from './lensa.js';
 import {
   renderAllTickets, updateCardInPlace, removeCard, insertCard,
@@ -323,8 +335,41 @@ async function ensureDoneTicketsLoaded(dateRange, customDate) {
   }
 }
 
-// ─── Init ─────────────────────────────────────────────────────────────────────
-async function init() {
+// ─── Auth State & Helpers ───────────────────────────────────────────────────
+let currentUser   = null;
+let timerInterval = null;
+
+function updateAuthUI(user) {
+  currentUser = user;
+  const overlay = document.getElementById('auth-overlay');
+  const btnLogout = document.getElementById('btn-header-logout');
+
+  if (user) {
+    if (overlay) overlay.style.display = 'none';
+    if (btnLogout) {
+      btnLogout.style.display = 'inline-flex';
+      btnLogout.title = `Akun: ${user.email} (Klik untuk keluar)`;
+    }
+  } else {
+    if (overlay) overlay.style.display = 'flex';
+    if (btnLogout) btnLogout.style.display = 'none';
+    clearAppData();
+  }
+}
+
+function clearAppData() {
+  unsubscribeTickets();
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+  tickets = [];
+  customGroups = [];
+  renderGroupTabs([], 'all', []);
+  renderCurrentView();
+}
+
+async function loadInitialData() {
   showLoading(true);
   try {
     const bounds = getDateRangeBounds(activeFilter.dateRange, activeFilter.customDate);
@@ -344,7 +389,7 @@ async function init() {
     updateStats(getGroupTickets(), activeFilter);
     updateUkurAllButton();
   } catch (e) {
-    showToast('❌ Gagal memuat tiket dari Supabase. Cek config.js!', 'error');
+    showToast('❌ Gagal memuat tiket dari Supabase. Cek izin akun & koneksi!', 'error');
     console.error(e);
   } finally {
     showLoading(false);
@@ -354,7 +399,90 @@ async function init() {
   subscribeToTickets(handleRealtimeChange);
 
   // Timer: update SLA & waktu ukur setiap 15 detik
-  setInterval(() => updateAllTimers(tickets), 15000);
+  if (!timerInterval) {
+    timerInterval = setInterval(() => updateAllTimers(tickets), 15000);
+  }
+}
+
+// ─── Setup Event Listeners (Once on load) ────────────────────────────────────
+function setupEventListeners() {
+  // Auth Form Submit
+  const authForm = document.getElementById('auth-form');
+  const authEmail = document.getElementById('auth-email');
+  const authPassword = document.getElementById('auth-password');
+  const authErrorMsg = document.getElementById('auth-error-msg');
+  const btnAuthSubmit = document.getElementById('btn-auth-submit');
+  const authSubmitLabel = document.getElementById('auth-submit-label');
+  const btnTogglePw = document.getElementById('btn-toggle-password');
+
+  if (btnTogglePw && authPassword) {
+    btnTogglePw.addEventListener('click', () => {
+      const isPassword = authPassword.type === 'password';
+      authPassword.type = isPassword ? 'text' : 'password';
+      btnTogglePw.textContent = isPassword ? '🙈' : '👁️';
+    });
+  }
+
+  if (authForm) {
+    authForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = authEmail?.value.trim();
+      const password = authPassword?.value;
+
+      if (!email || !password) {
+        if (authErrorMsg) {
+          authErrorMsg.textContent = 'Email dan password wajib diisi.';
+          authErrorMsg.style.display = 'block';
+        }
+        return;
+      }
+
+      if (authErrorMsg) authErrorMsg.style.display = 'none';
+      if (btnAuthSubmit) btnAuthSubmit.disabled = true;
+      if (authSubmitLabel) authSubmitLabel.textContent = 'Memverifikasi...';
+
+      try {
+        const data = await signIn(email, password);
+        if (authPassword) authPassword.value = '';
+        updateAuthUI(data.user);
+        showToast(`👋 Selamat datang!`, 'success');
+        await loadInitialData();
+      } catch (err) {
+        console.error('Login error:', err);
+        let msg = err.message || 'Gagal masuk. Cek email dan password.';
+        if (msg.includes('Invalid login credentials')) {
+          msg = 'Email atau password salah.';
+        } else if (msg.includes('Email not confirmed')) {
+          msg = 'Email belum dikonfirmasi di Supabase.';
+        }
+        if (authErrorMsg) {
+          authErrorMsg.textContent = `⚠️ ${msg}`;
+          authErrorMsg.style.display = 'block';
+        }
+      } finally {
+        if (btnAuthSubmit) btnAuthSubmit.disabled = false;
+        if (authSubmitLabel) authSubmitLabel.textContent = 'Masuk';
+      }
+    });
+  }
+
+  // Header Logout button
+  const btnHeaderLogout = document.getElementById('btn-header-logout');
+  if (btnHeaderLogout) {
+    btnHeaderLogout.addEventListener('click', async () => {
+      const email = currentUser?.email || 'Akun Anda';
+      if (!confirm(`Keluar dari Ticket Manager (${email})?`)) return;
+
+      try {
+        await signOut();
+        updateAuthUI(null);
+        showToast('🚪 Berhasil keluar.', 'info');
+      } catch (err) {
+        console.error('Logout error:', err);
+        showToast('⚠️ Gagal keluar dari server.', 'error');
+      }
+    });
+  }
 
   // Event delegation
   document.addEventListener('click', handleClick);
@@ -677,6 +805,33 @@ async function init() {
   if (btnUkurAll) {
     btnUkurAll.addEventListener('click', handleUkurSemua);
   }
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+async function init() {
+  setupEventListeners();
+
+  try {
+    const session = await getAuthSession();
+    if (session?.user) {
+      updateAuthUI(session.user);
+      await loadInitialData();
+    } else {
+      updateAuthUI(null);
+    }
+  } catch (err) {
+    console.error('Session retrieval error:', err);
+    updateAuthUI(null);
+  }
+
+  onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_OUT') {
+      updateAuthUI(null);
+    } else if (event === 'SIGNED_IN' && session?.user && !currentUser) {
+      updateAuthUI(session.user);
+      await loadInitialData();
+    }
+  });
 }
 
 // ─── Loading indicator ────────────────────────────────────────────────────────

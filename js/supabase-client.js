@@ -88,10 +88,15 @@ async function deleteTicket(id) {
   if (error) throw error;
 }
 
+let _realtimeChannel = null;
+
 // ─── Realtime subscription ────────────────────────────────────────────────────
 // callback({ eventType: 'INSERT'|'UPDATE'|'DELETE', old, new })
 function subscribeToTickets(callback) {
-  return getClient()
+  if (_realtimeChannel) {
+    getClient().removeChannel(_realtimeChannel);
+  }
+  _realtimeChannel = getClient()
     .channel('tickets-realtime')
     .on(
       'postgres_changes',
@@ -105,6 +110,57 @@ function subscribeToTickets(callback) {
       }
     )
     .subscribe();
+  return _realtimeChannel;
 }
 
-export { fetchTickets, fetchDoneTickets, addTickets, updateTicket, deleteTicket, subscribeToTickets };
+function unsubscribeTickets() {
+  if (_realtimeChannel) {
+    getClient().removeChannel(_realtimeChannel);
+    _realtimeChannel = null;
+  }
+}
+
+// ─── Supabase Authentication ──────────────────────────────────────────────────
+async function signIn(email, password) {
+  const { data, error } = await getClient().auth.signInWithPassword({
+    email,
+    password,
+  });
+  if (error) throw error;
+  return data;
+}
+
+async function signOut() {
+  unsubscribeTickets();
+  const { error } = await getClient().auth.signOut();
+  if (error) throw error;
+}
+
+async function getAuthSession() {
+  const { data, error } = await getClient().auth.getSession();
+  if (error) {
+    console.warn('Error fetching session:', error);
+    return null;
+  }
+  return data.session;
+}
+
+function onAuthStateChange(callback) {
+  return getClient().auth.onAuthStateChange((event, session) => {
+    callback(event, session);
+  });
+}
+
+export {
+  fetchTickets,
+  fetchDoneTickets,
+  addTickets,
+  updateTicket,
+  deleteTicket,
+  subscribeToTickets,
+  unsubscribeTickets,
+  signIn,
+  signOut,
+  getAuthSession,
+  onAuthStateChange,
+};

@@ -24,7 +24,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 
   <!-- Custom CSS -->
-  <link rel="stylesheet" href="css/style.css?v=3.5">
+  <link rel="stylesheet" href="css/style.css?v=3.6">
 </head>
 <body>
 
@@ -55,6 +55,10 @@
         <input type="search" id="input-search" class="header-input-search" placeholder="Cari..." autocomplete="off">
         <button type="button" id="btn-clear-search" class="btn-clear-search" style="display:none;" title="Bersihkan pencarian">✕</button>
       </div>
+      <button type="button" class="btn-header-logout" id="btn-header-logout" style="display:none;" title="Keluar / Logout">
+        <span>🚪</span>
+        <span class="btn-label hide-mobile">Keluar</span>
+      </button>
     </div>
   </header>
 
@@ -251,11 +255,47 @@
   </div>
 </div>
 
+<!-- ── Auth Overlay (Login Screen) ───────────────────────────────── -->
+<div id="auth-overlay" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title">
+  <div class="auth-card">
+    <div class="auth-brand">
+      <div class="auth-logo-badge">🎟️</div>
+      <h1 class="auth-title" id="auth-modal-title">Ticket Manager</h1>
+      <p class="auth-subtitle">Masuk untuk mengakses tiket gangguan</p>
+    </div>
+
+    <form id="auth-form" class="auth-form" autocomplete="on">
+      <div class="auth-field">
+        <label class="auth-label" for="auth-email">Email</label>
+        <input type="email" id="auth-email" class="auth-input" placeholder="teknisi@telkom.id" required autocomplete="email">
+      </div>
+
+      <div class="auth-field">
+        <label class="auth-label" for="auth-password">Password</label>
+        <div class="auth-password-wrap">
+          <input type="password" id="auth-password" class="auth-input" placeholder="••••••••" required autocomplete="current-password">
+          <button type="button" id="btn-toggle-password" class="btn-toggle-pw" title="Lihat/sembunyikan password" aria-label="Lihat atau sembunyikan password">👁️</button>
+        </div>
+      </div>
+
+      <div id="auth-error-msg" class="auth-error" style="display:none;"></div>
+
+      <button type="submit" id="btn-auth-submit" class="btn-auth-submit">
+        <span id="auth-submit-label">Masuk</span>
+      </button>
+    </form>
+
+    <div class="auth-footer">
+      Sistem internal teknisi lapangan. Hubungi Admin jika belum memiliki akun atau lupa password.
+    </div>
+  </div>
+</div>
+
 <!-- ── Toast ──────────────────────────────────────────────────────── -->
 <!-- Di-render oleh JS saat dibutuhkan -->
 
 <!-- ── Scripts (ES Modules) ───────────────────────────────────────── -->
-<script type="module" src="js/app.js?v=3.5"></script>
+<script type="module" src="js/app.js?v=3.6"></script>
 
 <!-- ── Inline: update ticket summary header ──────────────────────── -->
 <script type="module">
