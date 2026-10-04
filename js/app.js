@@ -22,6 +22,7 @@ import {
   onAuthStateChange
 } from './supabase-client.js';
 import { ukurRedaman } from './lensa.js';
+import CONFIG from './config.js';
 import {
   renderAllTickets, updateCardInPlace, removeCard, insertCard,
   setUkurLoading, showToast, showModal, showInputModal,
@@ -29,6 +30,7 @@ import {
   modalManageGroups, renderGroupTabs,
   updateAllTimers, updateStats, getSavedTechnicians, saveTechnicianName,
   getCompactRedamanStatus, getDateRangeBounds, isTicketInDateRange,
+  setUiCurrentUser,
 } from './ui.js';
 import { cleanOdpName, fetchNearestOdp, getGoogleMapsUrl, getGoogleMapsDirUrl, getWazeDirUrl } from './odp.js';
 
@@ -404,6 +406,7 @@ let timerInterval = null;
 
 function updateAuthUI(user) {
   currentUser = user;
+  setUiCurrentUser(user);
   const overlay = document.getElementById('auth-overlay');
   const btnLogout = document.getElementById('btn-header-logout');
 
@@ -1098,6 +1101,7 @@ async function handleClick(e) {
     case 'done':          return handleDone(ticket);
     case 'kendala':       return handleKendala(ticket);
     case 'rekap':         return handleRekap(ticket);
+    case 'scc':           return handleScc(ticket);
     case 'delete':        return handleDelete(ticket);
     case 'add':           return handleAddTicket();
     case 'pin':           return handlePin(ticket);
@@ -2459,6 +2463,50 @@ function handleRekap(ticket) {
     confirmLabel: '✖ Tutup',
     cancelLabel: '', // otomatis disembunyikan di showModal
   });
+}
+
+// ─── Action: SCC (Salin Script Python / Buka Termux atau SCC Web) ──────────────
+async function handleScc(ticket) {
+  if (!ticket) return;
+
+  const email = (currentUser?.email || '').toLowerCase().trim();
+  const isSpecial = (CONFIG.SCC_SPECIAL_EMAILS || []).map(e => e.toLowerCase().trim()).includes(email);
+
+  if (isSpecial) {
+    // 1. Format script: python ~/scc-checker/scc_checker.py INC53662910 --odp ODP-UBN-FAR/18 --auto-speed --image
+    const inc = ticket.inc || '';
+    const odpClean = cleanOdpName(ticket.odp) || (ticket.odp && ticket.odp !== '-' ? ticket.odp.trim() : '');
+    let script = `python ~/scc-checker/scc_checker.py ${inc}`;
+    if (odpClean) {
+      script += ` --odp ${odpClean}`;
+    }
+    script += ` --auto-speed --image`;
+
+    // 2. Salin ke clipboard
+    await copyTextToClipboard(script);
+    showToast('⚡ Script SCC disalin! Membuka Termux...', 'success', 2500);
+
+    // 3. Launch Termux app di Android (via intent URI)
+    const termuxIntent = 'intent:#Intent;package=com.termux;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;end';
+    try {
+      const a = document.createElement('a');
+      a.href = termuxIntent;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => a.remove(), 1000);
+    } catch (err) {
+      console.warn('Gagal meluncurkan Termux intent:', err);
+    }
+  } else {
+    // User biasa: Buka web SCC resmi Telkom sesuai tiket & internet
+    const inc = ticket.inc || '';
+    const inet = ticket.inet || '';
+    const sccUrl = `https://scc.telkom.co.id/CloseTicket.Internet/Check_embededv1/?ticketId=${encodeURIComponent(inc)}&nd=${encodeURIComponent(inet)}`;
+
+    showToast('🌐 Membuka SCC Web...', 'info', 1500);
+    window.open(sccUrl, '_blank', 'noopener,noreferrer');
+  }
 }
 
 // ─── Action: Delete ───────────────────────────────────────────────────────────

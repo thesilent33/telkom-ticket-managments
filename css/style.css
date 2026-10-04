@@ -1808,8 +1808,24 @@ body.batch-mode-active #tickets-container {
 .btn-done    { background: #f0fdf4; color: #166534; }
 .btn-kendala { background: #fffbeb; color: #92400e; }
 .btn-rekap   { background: #f5f3ff; color: #5b21b6; }
+.btn-scc     {
+  grid-column: span 4;
+  background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%);
+  color: #ffffff;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  font-size: 0.82rem;
+  box-shadow: 0 1px 3px rgba(79, 70, 229, 0.25);
+  margin-top: 2px;
+  min-height: 36px;
+}
 
 .btn-action:hover { filter: brightness(0.94); }
+.btn-scc:hover {
+  background: linear-gradient(135deg, #4338ca 0%, #2563eb 100%);
+  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.35);
+  filter: none;
+}
 .btn-action.loading { opacity: 0.6; cursor: not-allowed; }
 .btn-action:disabled { opacity: 0.6; cursor: not-allowed; }
 

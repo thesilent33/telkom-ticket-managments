@@ -20,6 +20,11 @@ export function escapeHtml(str) {
     .replace(/'/g, '&#39;');
 }
 
+let _currentAuthUser = null;
+export function setUiCurrentUser(user) {
+  _currentAuthUser = user;
+}
+
 // ─── SLA Timer helpers ────────────────────────────────────────────────────────
 
 function getElapsedMs(ticket) {
@@ -327,12 +332,17 @@ function renderActions(ticket) {
   const doneLabel    = isDone    ? '↩️ Unmark' : '✅ Selesai';
   const kendalaLabel = isKendala ? '↩️ Batal'  : '⚠️ Kendala';
 
+  const userEmail = (_currentAuthUser?.email || '').toLowerCase().trim();
+  const isSpecial = (CONFIG.SCC_SPECIAL_EMAILS || []).map(e => e.toLowerCase().trim()).includes(userEmail);
+  const sccTitle = isSpecial ? '⚡ Salin Script SCC & Buka Termux' : '🌐 Buka SCC Web';
+
   return `
     <div class="card-actions">
       <button class="btn-action btn-ukur"    data-action="ukur"    data-id="${id}" title="${ukurLabel}">${ukurLabel}</button>
       <button class="btn-action btn-done"    data-action="done"    data-id="${id}" title="${doneLabel}">${doneLabel}</button>
       <button class="btn-action btn-kendala" data-action="kendala" data-id="${id}" title="${kendalaLabel}">${kendalaLabel}</button>
       <button class="btn-action btn-rekap"   data-action="rekap"   data-id="${id}" title="Rekap Tiket">📋 Rekap</button>
+      <button class="btn-action btn-scc"     data-action="scc"     data-id="${id}" title="${sccTitle}">⚡ SCC</button>
     </div>`;
 }
 
@@ -1263,4 +1273,5 @@ export {
   saveTechnicianName,
   getDateRangeBounds,
   isTicketInDateRange,
+  setUiCurrentUser,
 };

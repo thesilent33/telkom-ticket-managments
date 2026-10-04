@@ -37,6 +37,11 @@ const CONFIG = {
   SLA_GREEN:  4 * 60,   // < 4 jam → hijau
   SLA_YELLOW: 8 * 60,   // 4–8 jam → kuning
   // >= 8 jam → merah, lewat deadline → hitam berkedip
+
+  // ----------------------------------------------------------
+  // User Khusus: Hak Akses Salin Script SCC & Launch Termux
+  // ----------------------------------------------------------
+  SCC_SPECIAL_EMAILS: ['joni.subroto10@gmail.com'],
 };
 
 export default CONFIG;
