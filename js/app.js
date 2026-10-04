@@ -2,7 +2,7 @@
  * app.js — Main controller: init, event handling, realtime, ukur semua, grup & pin
  */
 
-import { parseTickets } from './parser.js?v=4.8';
+import { parseTickets } from './parser.js?v=5.0';
 import {
   fetchTickets,
   fetchDoneTickets,
@@ -20,9 +20,9 @@ import {
   signOut,
   getAuthSession,
   onAuthStateChange
-} from './supabase-client.js?v=4.8';
-import { ukurRedaman } from './lensa.js?v=4.8';
-import CONFIG from './config.js?v=4.8';
+} from './supabase-client.js?v=5.0';
+import { ukurRedaman } from './lensa.js?v=5.0';
+import CONFIG from './config.js?v=5.0';
 import {
   renderAllTickets, updateCardInPlace, removeCard, insertCard,
   setUkurLoading, showToast, showModal, showInputModal,
@@ -31,8 +31,8 @@ import {
   updateAllTimers, updateStats, getSavedTechnicians, saveTechnicianName,
   getCompactRedamanStatus, getDateRangeBounds, isTicketInDateRange,
   setUiCurrentUser,
-} from './ui.js?v=4.8';
-import { cleanOdpName, fetchNearestOdp, getGoogleMapsUrl, getGoogleMapsDirUrl, getWazeDirUrl } from './odp.js?v=4.8';
+} from './ui.js?v=5.0';
+import { cleanOdpName, fetchNearestOdp, getGoogleMapsUrl, getGoogleMapsDirUrl, getWazeDirUrl } from './odp.js?v=5.0';
 
 // ─── Filter State Storage ─────────────────────────────────────────────────────
 function loadStoredFilterState() {

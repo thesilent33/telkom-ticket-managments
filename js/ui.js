@@ -2,10 +2,10 @@
  * ui.js — Semua fungsi rendering & DOM manipulation
  */
 
-import CONFIG from './config.js?v=4.8';
-import { generateRekap } from './parser.js?v=4.8';
-import { formatRedamanSummary } from './lensa.js?v=4.8';
-import { cleanOdpName, getGoogleMapsUrl, getGoogleMapsDirUrl, getWazeDirUrl } from './odp.js?v=4.8';
+import CONFIG from './config.js?v=5.0';
+import { generateRekap } from './parser.js?v=5.0';
+import { formatRedamanSummary } from './lensa.js?v=5.0';
+import { cleanOdpName, getGoogleMapsUrl, getGoogleMapsDirUrl, getWazeDirUrl } from './odp.js?v=5.0';
 
 /**
  * Utility: Sanitasi karakter khusus HTML untuk mencegah XSS injection

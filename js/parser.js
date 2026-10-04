@@ -52,9 +52,20 @@ function extractFields(text) {
   const inetRaw = text.match(/\b(172\d{9,12})\b/);
   const inet = inetLabel ? inetLabel[1] : (inetRaw ? inetRaw[1] : '');
 
-  // Nama pelanggan (dari ikon 👤 atau label Customer Name / Nama Pelanggan)
-  const namaM = text.match(/(?:👤|Customer Name\s*:|Nama Pelanggan\s*:)\s*([^\n\r(]+)/i);
-  const nama = namaM ? namaM[1].trim().replace(/\s+/g, ' ') : '';
+  // Nama pelanggan
+  let nama = '';
+  const kontakM = text.match(/Kontak Pelanggan\s*:\s*([^\n\r]+)/i);
+  if (kontakM) {
+    const rawKontak = kontakM[1].trim();
+    // Buang nomor telepon di belakang nama (misal: "WIWIK MURTAFIAH 62895374255865...")
+    const cleanKontak = rawKontak.replace(/\s+\+?\d[\d\s\-]{7,}.*$/, '').trim();
+    if (cleanKontak) nama = cleanKontak;
+  }
+  if (!nama) {
+    // Hindari mencocokkan PIC internal seperti "👤 HSA & OSA" atau "👤 Koordinator"
+    const namaM = text.match(/(?:👤(?!\s*(?:HSA|OSA|Koordinator|Teknisi))|Customer Name\s*:|Nama Pelanggan\s*:)\s*([^\n\r(]+)/i);
+    nama = namaM ? namaM[1].trim().replace(/\s+/g, ' ') : '';
+  }
 
   // ODP / ODC — ambil ODP- atau ODC-
   const odpM = text.match(/\b((?:ODP|ODC)-[A-Z0-9]+-[A-Z0-9\/\.\-]+)/i);
@@ -80,6 +91,13 @@ function extractFields(text) {
   }
   const tier = normalizeTier(tierRaw);
 
+  // Keluhan untuk WO
+  let keluhan = '';
+  const keluhanM = text.match(/Keluhan\s*:\s*([^\n\r]+)/i);
+  if (keluhanM) {
+    keluhan = keluhanM[1].replace(/^(?:null\s*\|\s*)?(?:TECHNICAL\s*\|\s*)?/i, '').trim();
+  }
+
   // Reported Date
   const repM = text.match(/Reported Date\s*:\s*(\d{2}-\d{2}-\d{4}\s+\d{2}:\d{2}:\d{2})/i);
   let reported_at = parseWODate(repM ? repM[1] : null);
@@ -101,7 +119,7 @@ function extractFields(text) {
     sla_deadline = new Date(repDate.getTime() + maxHours * 3600 * 1000).toISOString();
   }
 
-  return { inc, inet, odp, nama, tier, reported_at, sla_deadline };
+  return { inc, inet, odp, nama, tier, keluhan, reported_at, sla_deadline };
 }
 
 // ─── Parse satu blok teks (WO panjang, baris pipe, atau multi-line tiket) ─────
@@ -109,9 +127,13 @@ function parseSingleBlock(text, isWO = false) {
   const f = extractFields(text);
   if (!f.inc && !f.inet) return null;
 
-  // Ekstrak "rest" dari pipe-format jika ada (dan bukan format WO resmi)
+  const isFullWO = isWO || /(?:📢\s*)?NEW WO\b|No Tiket\s*:|Reported Date\s*:|Datek\s*:/i.test(text);
+
+  // Ekstrak "rest" dari pipe-format atau keluhan dari WO
   let rest = '';
-  if (!isWO) {
+  if (isFullWO) {
+    rest = f.keluhan || '';
+  } else {
     const pipeParts = text.split('|').map(p => p.trim()).filter(Boolean);
     if (pipeParts.length >= 2) {
       const knownPatterns = [
@@ -169,6 +191,8 @@ function splitIntoTicketBlocks(rawText) {
       }
       return blocks;
     }
+    // Satu tiket WO utuh
+    return [text];
   } else if (/NO TIKET\s*:/i.test(text)) {
     const noTiketMatches = [...text.matchAll(/(?:^|\n)(?=NO TIKET\s*:)/gi)];
     if (noTiketMatches.length > 1) {
@@ -181,6 +205,13 @@ function splitIntoTicketBlocks(rawText) {
       }
       return blocks;
     }
+    // Satu tiket utuh
+    return [text];
+  }
+
+  // Jika teks memiliki Datek : atau Reported Date :, ini adalah format WO tunggal
+  if (/Datek\s*:|Reported Date\s*:/i.test(text)) {
+    return [text];
   }
 
   // Check 2: Multiple nomor INC (dengan nomor urut "1. INC..." atau langsung "INC...")
@@ -195,6 +226,14 @@ function splitIntoTicketBlocks(rawText) {
       if (chunk) blocks.push(chunk);
     }
     return blocks;
+  }
+
+  // Check 2b: Jika hanya ada 1 nomor INC unik dan paling banyak 1 nomor 172... unik,
+  // maka PASTI ini cuma 1 tiket (jangan dipotong oleh baris kosong)
+  const incs = new Set([...text.matchAll(/\bINC\d{7,}\b/gi)].map(m => m[0].toUpperCase()));
+  const inets = new Set([...text.matchAll(/\b172\d{9,12}\b/g)].map(m => m[0]));
+  if (incs.size <= 1 && inets.size <= 1) {
+    return [text];
   }
 
   // Check 3: Pemisah double newlines (baris kosong antar tiket)
