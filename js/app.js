@@ -1278,6 +1278,7 @@ function updateParsePreview(text) {
       ${parsed.length > 1 ? `<div class="preview-num">Tiket ${i+1}</div>` : ''}
       <div class="preview-row"><span>INC</span><code>${t.inc || '—'}</code></div>
       <div class="preview-row"><span>iNetID</span><code>${t.inet || '—'}</code></div>
+      ${t.nama ? `<div class="preview-row"><span>Nama</span><span>${t.nama}</span></div>` : ''}
       <div class="preview-row"><span>ODP</span><span>${t.odp || '—'}</span></div>
       <div class="preview-row"><span>Tier</span><span>${t.tier}</span></div>
       ${t.reported_at ? `<div class="preview-row"><span>Reported</span><span>${new Date(t.reported_at).toLocaleString('id-ID')}</span></div>` : ''}

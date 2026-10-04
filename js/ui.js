@@ -344,6 +344,7 @@ function renderTicketCard(ticket, isCompact = true, isBatch = false, isSelected 
     ? `<span class="sla-timer ${sla.className}" data-id="${ticket.id}" data-reported="${ticket.reported_at}" data-deadline="${ticket.sla_deadline ?? ''}">⏱️ ${sla.label}</span>`
     : '';
 
+  const namaStr  = ticket.nama ? `<span class="customer-name" title="Nama Pelanggan">👤 ${ticket.nama}</span> <span class="separator">·</span> ` : '';
   const incStr   = ticket.inc  ? `<code class="inc-code">${ticket.inc}</code>`   : '—';
   const inetStr  = ticket.inet ? `<code class="inet-code">${ticket.inet}</code>` : '—';
   const odpStr   = ticket.odp  ? `<span class="odp-text">${ticket.odp}</span>`   : '';
@@ -377,7 +378,7 @@ function renderTicketCard(ticket, isCompact = true, isBatch = false, isSelected 
   </div>
 
   <div class="card-info">
-    ${inetStr}${odpStr ? ` <span class="separator">·</span> ${odpStr}` : ''}${restStr}
+    ${namaStr}${inetStr}${odpStr ? ` <span class="separator">·</span> ${odpStr}` : ''}${restStr}
   </div>
 
   <div class="card-redaman">

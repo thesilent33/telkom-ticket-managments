@@ -1556,6 +1556,16 @@ body.batch-mode-active #tickets-container {
   flex-wrap: wrap;
 }
 
+.customer-name {
+  color: #1e293b;
+  font-weight: 600;
+  font-size: 0.82rem;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .inet-code {
   color: #4f46e5;
   font-weight: 600;
