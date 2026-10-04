@@ -29,13 +29,17 @@ async function fetchTickets(options = {}) {
     query = query.or(`status.neq.done,updated_at.gte.${options.since},created_at.gte.${options.since}`);
   }
 
+  if (options.limit) {
+    query = query.limit(options.limit);
+  }
+
   const { data, error } = await query;
   if (error) throw error;
   return data ?? [];
 }
 
 // ─── Fetch done tickets by date range on-demand ──────────────────────────────
-async function fetchDoneTickets(startDateIso, endDateIso) {
+async function fetchDoneTickets(startDateIso, endDateIso, limit = 200) {
   let query = getClient()
     .from('tickets')
     .select('*')
@@ -47,6 +51,9 @@ async function fetchDoneTickets(startDateIso, endDateIso) {
   }
   if (endDateIso) {
     query = query.lte('updated_at', endDateIso);
+  }
+  if (limit) {
+    query = query.limit(limit);
   }
 
   const { data, error } = await query;

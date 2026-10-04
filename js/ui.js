@@ -675,7 +675,17 @@ function showModal(html, { onConfirm, confirmLabel = 'OK', cancelLabel = 'Batal'
 
   overlay.classList.add('modal-open');
 
-  const close = () => overlay.classList.remove('modal-open');
+  const onKeyDown = (e) => {
+    if (e.key === 'Escape' || e.key === 'Esc') {
+      close();
+    }
+  };
+  document.addEventListener('keydown', onKeyDown);
+
+  const close = () => {
+    overlay.classList.remove('modal-open');
+    document.removeEventListener('keydown', onKeyDown);
+  };
 
   // Clone nodes to remove old listeners
   const newOk = btnOk.cloneNode(true);
@@ -693,22 +703,40 @@ function showModal(html, { onConfirm, confirmLabel = 'OK', cancelLabel = 'Batal'
 
 function showInputModal(html, { confirmLabel = 'Simpan', cancelLabel = 'Batal', getValues, dangerous = false, onMount } = {}) {
   return new Promise((resolve) => {
+    let settled = false;
+    const finish = (val) => {
+      if (!settled) {
+        settled = true;
+        resolve(val);
+      }
+    };
+
     showModal(html, {
       confirmLabel,
       cancelLabel,
       dangerous,
       onConfirm: () => {
         const vals = getValues ? getValues() : null;
-        resolve(vals);
+        finish(vals);
       },
     });
+
     if (typeof onMount === 'function') {
       try { onMount(); } catch (err) { console.error(err); }
     }
-    // Resolve null on cancel/close
-    document.getElementById('modal-cancel').addEventListener('click', () => resolve(null), { once: true });
+
+    // Resolve null on cancel/close or Escape
+    const onEsc = (e) => {
+      if (e.key === 'Escape' || e.key === 'Esc') {
+        finish(null);
+        document.removeEventListener('keydown', onEsc);
+      }
+    };
+    document.addEventListener('keydown', onEsc, { once: true });
+
+    document.getElementById('modal-cancel').addEventListener('click', () => finish(null), { once: true });
     document.getElementById('modal-overlay').addEventListener('click', (e) => {
-      if (e.target === document.getElementById('modal-overlay')) resolve(null);
+      if (e.target === document.getElementById('modal-overlay')) finish(null);
     }, { once: true });
   });
 }
