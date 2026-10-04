@@ -2496,14 +2496,9 @@ async function handleScc(ticket) {
     await copyTextToClipboard(script);
     showToast('⚡ Script SCC disalin! Membuka Termux...', 'success', 2500);
 
-    // 3. Launch Termux app di Android (Hapus package=com.termux agar Chrome DILARANG redirect ke Play Store)
-    const termuxIntent = 'intent:#Intent;action=android.intent.action.MAIN;category=android.intent.category.DEFAULT;component=com.termux/.app.TermuxActivity;end';
+    // 3. Launch Termux app di Android menggunakan skema resmi android-app://
     try {
-      const link = document.createElement('a');
-      link.href = termuxIntent;
-      document.body.appendChild(link);
-      link.click();
-      setTimeout(() => link.remove(), 500);
+      window.location.href = 'android-app://com.termux';
     } catch (err) {
       console.warn('Gagal meluncurkan Termux intent:', err);
     }
