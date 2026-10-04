@@ -665,16 +665,21 @@ function setupEventListeners() {
       if (headerSearchWrap) headerSearchWrap.classList.add('has-value');
     }
 
+    let searchDebounceTimer = null;
     inputSearch.addEventListener('input', (e) => {
-      activeFilter.search = e.target.value;
-      saveFilterState();
+      const val = e.target.value;
       if (btnClearSearch) {
-        btnClearSearch.style.display = activeFilter.search ? 'inline-flex' : 'none';
+        btnClearSearch.style.display = val ? 'inline-flex' : 'none';
       }
       if (headerSearchWrap) {
-        headerSearchWrap.classList.toggle('has-value', Boolean(activeFilter.search));
+        headerSearchWrap.classList.toggle('has-value', Boolean(val));
       }
-      renderCurrentView();
+      clearTimeout(searchDebounceTimer);
+      searchDebounceTimer = setTimeout(() => {
+        activeFilter.search = val;
+        saveFilterState();
+        renderCurrentView();
+      }, 200);
     });
   }
   if (btnClearSearch) {

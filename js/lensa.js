@@ -10,48 +10,76 @@ import CONFIG from './config.js';
  * @param {string} inet - Nomor iNetID pelanggan (172xxxxxxxxx)
  * @returns {Promise<{success, onu_sn, onu_status, onu_rx, olt_rx, onu_rx_status, olt_rx_status, result_text, error?}>}
  */
-async function ukurRedaman(inet) {
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+async function ukurRedaman(inet, timeoutMs = 15000) {
   if (!inet) throw new Error('inet diperlukan');
 
-  const response = await fetch(CONFIG.N8N_WEBHOOK_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ inet }),
-  });
-
-  if (!response.ok) {
-    return {
-      success:    false,
-      error:      `HTTP ${response.status}`,
-      message:    `Gagal menghubungi server n8n (HTTP ${response.status})`,
-      onu_sn:     null,
-      onu_status: null,
-      onu_rx:     null,
-      olt_rx:     null,
-    };
-  }
-
-  const rawText = await response.text();
-  if (!rawText || !rawText.trim()) {
-    return {
-      success:    false,
-      error:      'empty_response',
-      message:    'n8n mengembalikan respon kosong. Periksa workflow di n8n.',
-      onu_sn:     null,
-      onu_status: null,
-      onu_rx:     null,
-      olt_rx:     null,
-    };
-  }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const data = JSON.parse(rawText);
-    return data;
-  } catch (e) {
+    const response = await fetch(CONFIG.N8N_WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ inet }),
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+
+    if (!response.ok) {
+      return {
+        success:    false,
+        error:      `HTTP ${response.status}`,
+        message:    `Gagal menghubungi server n8n (HTTP ${response.status})`,
+        onu_sn:     null,
+        onu_status: null,
+        onu_rx:     null,
+        olt_rx:     null,
+      };
+    }
+
+    const rawText = await response.text();
+    if (!rawText || !rawText.trim()) {
+      return {
+        success:    false,
+        error:      'empty_response',
+        message:    'n8n mengembalikan respon kosong. Periksa workflow di n8n.',
+        onu_sn:     null,
+        onu_status: null,
+        onu_rx:     null,
+        olt_rx:     null,
+      };
+    }
+
+    try {
+      const data = JSON.parse(rawText);
+      return data;
+    } catch (e) {
+      return {
+        success:    false,
+        error:      'invalid_json',
+        message:    `Respon dari n8n bukan JSON yang valid: ${rawText.slice(0, 80)}`,
+        onu_sn:     null,
+        onu_status: null,
+        onu_rx:     null,
+        olt_rx:     null,
+      };
+    }
+  } catch (err) {
+    clearTimeout(timer);
     return {
       success:    false,
-      error:      'invalid_json',
-      message:    `Respon dari n8n bukan JSON yang valid: ${rawText.slice(0, 80)}`,
+      error:      err.name === 'AbortError' ? 'timeout' : 'network_error',
+      message:    err.name === 'AbortError' ? 'Pengukuran redaman timeout (>15 detik)' : (err.message || 'Gagal koneksi ke server n8n'),
       onu_sn:     null,
       onu_status: null,
       onu_rx:     null,
@@ -81,9 +109,9 @@ function formatRedamanSummary(ticket) {
   };
 
   const parts = [];
-  if (ticket.onu_status) parts.push(`St: <b>${ticket.onu_status}</b> ${statusEmoji(ticket.onu_status)}`);
-  if (ticket.onu_rx)     parts.push(`ONU: <b>${ticket.onu_rx} dBm</b> ${rxEmoji(ticket.onu_rx_status)}`);
-  if (ticket.olt_rx)     parts.push(`OLT: <b>${ticket.olt_rx} dBm</b> ${rxEmoji(ticket.olt_rx_status)}`);
+  if (ticket.onu_status) parts.push(`St: <b>${escapeHtml(ticket.onu_status)}</b> ${statusEmoji(ticket.onu_status)}`);
+  if (ticket.onu_rx)     parts.push(`ONU: <b>${escapeHtml(ticket.onu_rx)} dBm</b> ${rxEmoji(ticket.onu_rx_status)}`);
+  if (ticket.olt_rx)     parts.push(`OLT: <b>${escapeHtml(ticket.olt_rx)} dBm</b> ${rxEmoji(ticket.olt_rx_status)}`);
 
   return parts.join(' | ');
 }

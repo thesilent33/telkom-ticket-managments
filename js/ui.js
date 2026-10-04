@@ -7,6 +7,19 @@ import { generateRekap } from './parser.js';
 import { formatRedamanSummary } from './lensa.js';
 import { cleanOdpName, getGoogleMapsUrl, getGoogleMapsDirUrl, getWazeDirUrl } from './odp.js';
 
+/**
+ * Utility: Sanitasi karakter khusus HTML untuk mencegah XSS injection
+ */
+export function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 // ─── SLA Timer helpers ────────────────────────────────────────────────────────
 
 function getElapsedMs(ticket) {
@@ -237,7 +250,7 @@ function renderRedaman(ticket) {
   const tipeOnt = extractOntType(ticket);
 
   const snHtml = ticket.onu_sn
-    ? `<div class="redaman-sn">🔌 SN: <code>${ticket.onu_sn}</code>${tipeOnt ? ` <span class="ont-tipe">(${tipeOnt})</span>` : ''}</div>`
+    ? `<div class="redaman-sn">🔌 SN: <code>${escapeHtml(ticket.onu_sn)}</code>${tipeOnt ? ` <span class="ont-tipe">(${escapeHtml(tipeOnt)})</span>` : ''}</div>`
     : '';
 
   // ACS Status & PCRF (Paket)
@@ -251,13 +264,13 @@ function renderRedaman(ticket) {
     ticket.result_text?.match(/PCRF:\s*([^\n<]+)/i)?.[1]?.trim();
 
   let metaBadges = [];
-  if (acsVal) metaBadges.push(`<span class="redaman-meta-badge">🌐 ACS: <b>${acsVal}</b> ${acsEmoji}</span>`);
-  if (pcrfVal) metaBadges.push(`<span class="redaman-meta-badge">📦 Paket: <b>${pcrfVal}</b></span>`);
+  if (acsVal) metaBadges.push(`<span class="redaman-meta-badge">🌐 ACS: <b>${escapeHtml(acsVal)}</b> ${acsEmoji}</span>`);
+  if (pcrfVal) metaBadges.push(`<span class="redaman-meta-badge">📦 Paket: <b>${escapeHtml(pcrfVal)}</b></span>`);
   const metaHtml = metaBadges.length > 0 ? `<div class="redaman-meta">${metaBadges.join(' ')}</div>` : '';
 
   // Last update time (Waktu Diukur) - ditaruh di compact row agar TIDAK dihide saat collapse
   const timeHtml = ticket.redaman_at
-    ? `<span class="redaman-time" data-measured="${ticket.redaman_at}">🕐 Diukur: ${formatLastUpdated(ticket.redaman_at)}</span>`
+    ? `<span class="redaman-time" data-measured="${escapeHtml(ticket.redaman_at)}">🕐 Diukur: ${formatLastUpdated(ticket.redaman_at)}</span>`
     : '';
 
   const detailsHtml = (summary || snHtml || metaHtml)
@@ -272,13 +285,14 @@ function renderRedaman(ticket) {
         <span class="redaman-empty">📡 Belum ada rincian pengukuran</span>
       </div>`;
 
+  const safeId = escapeHtml(ticket.id);
   return `
-    <div class="redaman-compact-row" data-action="toggle-card-collapse" data-id="${ticket.id}" title="Klik untuk buka / tutup rincian">
+    <div class="redaman-compact-row" data-action="toggle-card-collapse" data-id="${safeId}" title="Klik untuk buka / tutup rincian">
       <div class="redaman-compact-left">
         <span class="redaman-compact-badge ${compactStatus.badgeClass}">${compactStatus.text}</span>
         ${timeHtml}
       </div>
-      <button class="btn-card-expand" data-action="toggle-card-collapse" data-id="${ticket.id}" title="Buka / tutup rincian" aria-label="Toggle rincian kartu">▼</button>
+      <button class="btn-card-expand" data-action="toggle-card-collapse" data-id="${safeId}" title="Buka / tutup rincian" aria-label="Toggle rincian kartu">▼</button>
     </div>
     ${detailsHtml}`;
 }
@@ -289,14 +303,14 @@ function renderProgress(ticket) {
   if (ticket.status === 'done') {
     let txt = '✅ <b>Selesai</b>';
     if (ticket.perbaikan) {
-      txt += `: ${ticket.perbaikan}`;
-      if (ticket.penyebab) txt += ` <span class="penyebab">(${ticket.penyebab})</span>`;
+      txt += `: ${escapeHtml(ticket.perbaikan)}`;
+      if (ticket.penyebab) txt += ` <span class="penyebab">(${escapeHtml(ticket.penyebab)})</span>`;
     }
     return txt;
   }
   if (ticket.status === 'kendala') {
     let txt = '⚠️ <b>Kendala</b>';
-    if (ticket.kendala_text) txt += `: ${ticket.kendala_text}`;
+    if (ticket.kendala_text) txt += `: ${escapeHtml(ticket.kendala_text)}`;
     return txt;
   }
   return '<span class="progress-empty">⏳ Belum dikerjakan</span>';
@@ -305,7 +319,7 @@ function renderProgress(ticket) {
 // ─── Action buttons ───────────────────────────────────────────────────────────
 
 function renderActions(ticket) {
-  const id = ticket.id;
+  const id = escapeHtml(ticket.id);
   const isDone    = ticket.status === 'done';
   const isKendala = ticket.status === 'kendala';
 
@@ -341,28 +355,30 @@ function renderTicketCard(ticket, isCompact = true, isBatch = false, isSelected 
   if (isPinned) cardClasses.push('card-pinned');
   cardClasses.push(`tier-${tier.toLowerCase().replace(/_/g, '-')}`);
 
+  const safeId = escapeHtml(ticket.id);
+
   const slaHtml = sla
-    ? `<span class="sla-timer ${sla.className}" data-id="${ticket.id}" data-reported="${ticket.reported_at}" data-deadline="${ticket.sla_deadline ?? ''}">⏱️ ${sla.label}</span>`
+    ? `<span class="sla-timer ${sla.className}" data-id="${safeId}" data-reported="${escapeHtml(ticket.reported_at)}" data-deadline="${escapeHtml(ticket.sla_deadline ?? '')}">⏱️ ${escapeHtml(sla.label)}</span>`
     : '';
 
-  const namaStr  = ticket.nama ? `<span class="customer-name clickable-copy" data-copy="${ticket.nama}" title="Klik / sentuh untuk salin nama pelanggan">👤 ${ticket.nama}</span> <span class="separator">·</span> ` : '';
-  const incStr   = ticket.inc  ? `<code class="inc-code clickable-copy" data-copy="${ticket.inc}" title="Klik / sentuh untuk salin nomor INC">${ticket.inc}</code>`   : '—';
-  const inetStr  = ticket.inet ? `<code class="inet-code clickable-copy" data-copy="${ticket.inet}" title="Klik / sentuh untuk salin No Internet">${ticket.inet}</code>` : '—';
-  const odpStr   = ticket.odp  ? `<span class="odp-container"><span class="odp-text clickable-copy" data-copy="${ticket.odp}" title="Klik / sentuh untuk salin ODP">📍 ${ticket.odp}</span><button class="btn-odp-coords" data-action="odp-coords" data-odp="${ticket.odp}" data-id="${ticket.id}" title="Cek titik koordinat ODP & ODP terdekat" aria-label="Koordinat ODP">🌐</button></span>` : '';
-  const restStr  = ticket.rest ? `<span class="rest-text"> · ${ticket.rest}</span>` : '';
-  const teknisi  = ticket.teknisi || '—';
+  const namaStr  = ticket.nama ? `<span class="customer-name clickable-copy" data-copy="${escapeHtml(ticket.nama)}" title="Klik / sentuh untuk salin nama pelanggan">👤 ${escapeHtml(ticket.nama)}</span> <span class="separator">·</span> ` : '';
+  const incStr   = ticket.inc  ? `<code class="inc-code clickable-copy" data-copy="${escapeHtml(ticket.inc)}" title="Klik / sentuh untuk salin nomor INC">${escapeHtml(ticket.inc)}</code>`   : '—';
+  const inetStr  = ticket.inet ? `<code class="inet-code clickable-copy" data-copy="${escapeHtml(ticket.inet)}" title="Klik / sentuh untuk salin No Internet">${escapeHtml(ticket.inet)}</code>` : '—';
+  const odpStr   = ticket.odp  ? `<span class="odp-container"><span class="odp-text clickable-copy" data-copy="${escapeHtml(ticket.odp)}" title="Klik / sentuh untuk salin ODP">📍 ${escapeHtml(ticket.odp)}</span><button class="btn-odp-coords" data-action="odp-coords" data-odp="${escapeHtml(ticket.odp)}" data-id="${safeId}" title="Cek titik koordinat ODP & ODP terdekat" aria-label="Koordinat ODP">🌐</button></span>` : '';
+  const restStr  = ticket.rest ? `<span class="rest-text"> · ${escapeHtml(ticket.rest)}</span>` : '';
+  const teknisi  = escapeHtml(ticket.teknisi || '—');
 
-  const pinBtn   = `<button class="btn-card-pin ${isPinned ? 'active' : ''}" data-action="pin" data-id="${ticket.id}" title="${isPinned ? 'Lepas Pin' : 'Pin Tiket'}" aria-label="Pin tiket">📌</button>`;
+  const pinBtn   = `<button class="btn-card-pin ${isPinned ? 'active' : ''}" data-action="pin" data-id="${safeId}" title="${isPinned ? 'Lepas Pin' : 'Pin Tiket'}" aria-label="Pin tiket">📌</button>`;
 
   const rawGroups = ticket.groups;
   const groups = Array.isArray(rawGroups) ? rawGroups : (typeof rawGroups === 'string' && rawGroups ? rawGroups.split(',').map(s=>s.trim()).filter(Boolean) : []);
-  const groupsHtml = groups.map(g => `<span class="group-tag-chip">📁 ${g}</span>`).join('');
+  const groupsHtml = groups.map(g => `<span class="group-tag-chip">📁 ${escapeHtml(g)}</span>`).join('');
 
-  const batchCheckbox = `<input type="checkbox" class="card-batch-select" data-batch-id="${ticket.id}" ${isSelected ? 'checked' : ''} aria-label="Pilih tiket ${ticket.inc || ticket.id}">`;
+  const batchCheckbox = `<input type="checkbox" class="card-batch-select" data-batch-id="${safeId}" ${isSelected ? 'checked' : ''} aria-label="Pilih tiket ${escapeHtml(ticket.inc || ticket.id)}">`;
 
   return `
 <article class="${cardClasses.join(' ')}"
-         data-id="${ticket.id}"
+         data-id="${safeId}"
          style="border-left-color: ${cfg.color}; background: ${isDone ? '#f0fdf4' : isKendala ? '#fffbeb' : cfg.bg}">
 
   <div class="card-header">
@@ -374,7 +390,7 @@ function renderTicketCard(ticket, isCompact = true, isBatch = false, isSelected 
     <div class="card-header-right">
       ${slaHtml}
       ${pinBtn}
-      <button class="btn-card-delete" data-action="delete" data-id="${ticket.id}" title="Hapus tiket" aria-label="Hapus tiket">✕</button>
+      <button class="btn-card-delete" data-action="delete" data-id="${safeId}" title="Hapus tiket" aria-label="Hapus tiket">✕</button>
     </div>
   </div>
 
@@ -394,7 +410,7 @@ function renderTicketCard(ticket, isCompact = true, isBatch = false, isSelected 
     <div>👤 <span class="teknisi-name">${teknisi}</span></div>
     <div class="card-groups">
       ${groupsHtml}
-      <button class="btn-card-group-add" data-action="manage-groups" data-id="${ticket.id}" title="Kelola grup tiket">+ Grup</button>
+      <button class="btn-card-group-add" data-action="manage-groups" data-id="${safeId}" title="Kelola grup tiket">+ Grup</button>
     </div>
   </div>
 
@@ -543,7 +559,7 @@ function renderAllTickets(tickets, filter = {}, options = {}) {
     container.innerHTML = `
       <div class="empty-state">
         <div class="empty-icon">${isSearching ? '🔍' : '📭'}</div>
-        <p>${isSearching ? `Tidak ada tiket yang cocok dengan "<b>${filter.search}</b>"` : `Belum ada tiket${filter.status && filter.status !== 'all' ? ` dengan status <b>${filter.status}</b>` : ''}`}</p>
+        <p>${isSearching ? `Tidak ada tiket yang cocok dengan "<b>${escapeHtml(filter.search)}</b>"` : `Belum ada tiket${filter.status && filter.status !== 'all' ? ` dengan status <b>${escapeHtml(filter.status)}</b>` : ''}`}</p>
         <p class="empty-sub">${isSearching ? 'Coba kata kunci pencarian yang lain' : 'Tap tombol <b>+ Tambah</b> untuk menambahkan tiket baru'}</p>
       </div>`;
     return;
@@ -704,10 +720,11 @@ function modalAddTicket(allGroups = [], defaultGroup = 'all') {
     ? `<div id="modal-add-group-empty" style="color: #94a3b8; font-size: 0.82rem; padding: 6px 0; text-align: center;">Belum ada grup. Ketik nama grup baru di bawah jika ingin mengelompokkan tiket ini.</div>`
     : allGroups.map(g => {
         const isChecked = (defaultGroup && defaultGroup !== 'all' && g === defaultGroup);
+        const safeG = escapeHtml(g);
         return `
-          <label class="group-select-item ${isChecked ? 'checked' : ''}" data-group-name="${g}">
-            <span>📁 <b>${g}</b></span>
-            <input type="checkbox" name="add-ticket-group-check" value="${g}" ${isChecked ? 'checked' : ''}>
+          <label class="group-select-item ${isChecked ? 'checked' : ''}" data-group-name="${safeG}">
+            <span>📁 <b>${safeG}</b></span>
+            <input type="checkbox" name="add-ticket-group-check" value="${safeG}" ${isChecked ? 'checked' : ''}>
           </label>
         `;
       }).join('');
@@ -743,7 +760,7 @@ function modalAddTicket(allGroups = [], defaultGroup = 'all') {
 // ─── Modal: Done ──────────────────────────────────────────────────────────────
 
 function modalDone(ticket) {
-  const label = ticket.inc || `tiket #`;
+  const label = escapeHtml(ticket.inc || `tiket #`);
   const savedTechs = getSavedTechnicians();
   return `
     <h3 class="modal-title">✅ Tandai Selesai</h3>
@@ -751,21 +768,21 @@ function modalDone(ticket) {
     <div class="modal-section">
       <label class="modal-label">Perbaikan <span class="required">*</span></label>
       <input id="input-perbaikan" class="modal-input" type="text"
-        placeholder="cth: Ganti ONT" value="${ticket.perbaikan ?? ''}">
+        placeholder="cth: Ganti ONT" value="${escapeHtml(ticket.perbaikan ?? '')}">
     </div>
     <div class="modal-section">
       <label class="modal-label">Penyebab <span class="optional">(opsional)</span></label>
       <input id="input-penyebab" class="modal-input" type="text"
-        placeholder="cth: ONT mati total" value="${ticket.penyebab ?? ''}">
+        placeholder="cth: ONT mati total" value="${escapeHtml(ticket.penyebab ?? '')}">
     </div>
     <div class="modal-section">
       <label class="modal-label">Teknisi (Pilih atau Ketik Baru)</label>
       <input id="input-teknisi-done" class="modal-input" type="text"
         list="teknisi-list-done"
         placeholder="Pilih atau ketik nama teknisi"
-        value="${ticket.teknisi ?? ''}">
+        value="${escapeHtml(ticket.teknisi ?? '')}">
       <datalist id="teknisi-list-done">
-        ${savedTechs.map(t => `<option value="${t}">`).join('')}
+        ${savedTechs.map(t => `<option value="${escapeHtml(t)}">`).join('')}
       </datalist>
     </div>`;
 }
@@ -773,7 +790,7 @@ function modalDone(ticket) {
 // ─── Modal: Kendala ───────────────────────────────────────────────────────────
 
 function modalKendala(ticket) {
-  const label = ticket.inc || `tiket`;
+  const label = escapeHtml(ticket.inc || `tiket`);
   const savedTechs = getSavedTechnicians();
   return `
     <h3 class="modal-title">⚠️ Tandai Kendala</h3>
@@ -782,16 +799,16 @@ function modalKendala(ticket) {
       <label class="modal-label">Deskripsi Kendala <span class="required">*</span></label>
       <input id="input-kendala" class="modal-input" type="text"
         placeholder="cth: Akses rumah terkunci, pelanggan tidak bisa dihubungi"
-        value="${ticket.kendala_text ?? ''}">
+        value="${escapeHtml(ticket.kendala_text ?? '')}">
     </div>
     <div class="modal-section">
       <label class="modal-label">Teknisi (Pilih atau Ketik Baru)</label>
       <input id="input-teknisi-kendala" class="modal-input" type="text"
         list="teknisi-list-kendala"
         placeholder="Pilih atau ketik nama teknisi"
-        value="${ticket.teknisi ?? ''}">
+        value="${escapeHtml(ticket.teknisi ?? '')}">
       <datalist id="teknisi-list-kendala">
-        ${savedTechs.map(t => `<option value="${t}">`).join('')}
+        ${savedTechs.map(t => `<option value="${escapeHtml(t)}">`).join('')}
       </datalist>
     </div>`;
 }
@@ -802,9 +819,9 @@ function modalRekap(ticket) {
   const rekap = generateRekap(ticket);
   return `
     <h3 class="modal-title">📋 Rekap Tiket</h3>
-    <p class="modal-subtitle">${ticket.inc || '—'} <span class="text-xs text-slate-400">(Bisa diedit langsung sebelum disalin)</span></p>
+    <p class="modal-subtitle">${escapeHtml(ticket.inc || '—')} <span class="text-xs text-slate-400">(Bisa diedit langsung sebelum disalin)</span></p>
     <div class="rekap-box">
-      <textarea id="rekap-text" class="rekap-textarea" rows="11" spellcheck="false">${rekap}</textarea>
+      <textarea id="rekap-text" class="rekap-textarea" rows="11" spellcheck="false">${escapeHtml(rekap)}</textarea>
     </div>
     <button class="btn-copy" onclick="navigator.clipboard.writeText(document.getElementById('rekap-text').value).then(() => { this.textContent='✅ Berhasil Disalin!'; setTimeout(()=>this.textContent='📋 Salin Semua', 2000); }).catch(() => this.textContent='❌ Gagal')">
       📋 Salin Semua
@@ -815,11 +832,12 @@ function modalRekap(ticket) {
 
 function modalOdpCoordinates({ odpName, cleanName, result, isLoading, error }) {
   const displayTarget = cleanName || odpName || 'ODP';
+  const safeDisplayTarget = escapeHtml(displayTarget);
 
   if (isLoading) {
     return `
       <h3 class="modal-title">📍 Koordinat ODP & ODP Terdekat</h3>
-      <p class="modal-subtitle">Mencari data untuk <code>${displayTarget}</code></p>
+      <p class="modal-subtitle">Mencari data untuk <code>${safeDisplayTarget}</code></p>
       <div class="odp-modal-loading">
         <div class="odp-spinner"></div>
         <p>Menghubungkan ke database alpro & mencari ODP terdekat...</p>
@@ -828,24 +846,25 @@ function modalOdpCoordinates({ odpName, cleanName, result, isLoading, error }) {
   }
 
   if (error || (result && !result.success)) {
-    const errorMsg = result?.message || error || `ODP "${displayTarget}" tidak ditemukan di database.`;
+    const errorMsg = escapeHtml(result?.message || error || `ODP "${displayTarget}" tidak ditemukan di database.`);
     const gmapsSearchUrl = getGoogleMapsUrl(displayTarget);
     return `
       <h3 class="modal-title">📍 Koordinat ODP & ODP Terdekat</h3>
-      <p class="modal-subtitle">Target: <code>${displayTarget}</code></p>
+      <p class="modal-subtitle">Target: <code>${safeDisplayTarget}</code></p>
       <div class="odp-modal-alert">
         <span>⚠️ ${errorMsg}</span>
       </div>
       <div class="odp-modal-fallback" style="margin-top: 14px; text-align: center;">
         <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 10px;">Anda dapat mencari lokasi ODP ini langsung melalui Google Maps:</p>
         <a href="${gmapsSearchUrl}" target="_blank" rel="noopener noreferrer" class="btn-odp-nav maps" style="display: inline-flex; justify-content: center; width: 100%; padding: 10px 14px; text-decoration: none;">
-          🗺️ Cari "${displayTarget}" di Google Maps
+          🗺️ Cari "${safeDisplayTarget}" di Google Maps
         </a>
       </div>
     `;
   }
 
   const target = result.target || displayTarget;
+  const safeTarget = escapeHtml(target);
   const targetLat = result.target_latitude;
   const targetLon = result.target_longitude;
   const candidates = Array.isArray(result.candidates) ? result.candidates : [];
@@ -859,7 +878,7 @@ function modalOdpCoordinates({ odpName, cleanName, result, isLoading, error }) {
     targetSection = `
       <div class="odp-target-box">
         <div class="odp-target-header">
-          <span class="odp-target-label">📌 Target: <b class="clickable-copy" data-copy="${target}" title="Salin target">${target}</b></span>
+          <span class="odp-target-label">📌 Target: <b class="clickable-copy" data-copy="${safeTarget}" title="Salin target">${safeTarget}</b></span>
           <span class="odp-status-pill success">✅ Ditemukan</span>
         </div>
         <div class="odp-target-coords">
@@ -878,7 +897,7 @@ function modalOdpCoordinates({ odpName, cleanName, result, isLoading, error }) {
     targetSection = `
       <div class="odp-target-box">
         <div class="odp-target-header">
-          <span class="odp-target-label">📌 Target: <b class="clickable-copy" data-copy="${target}" title="Salin target">${target}</b></span>
+          <span class="odp-target-label">📌 Target: <b class="clickable-copy" data-copy="${safeTarget}" title="Salin target">${safeTarget}</b></span>
           <span class="odp-status-pill info">📍 Alpro</span>
         </div>
         <div class="odp-target-actions" style="margin-top: 8px;">
@@ -895,11 +914,12 @@ function modalOdpCoordinates({ odpName, cleanName, result, isLoading, error }) {
       const cDirUrl = getGoogleMapsDirUrl(c.latitude, c.longitude);
       const cWazeUrl = getWazeDirUrl(c.latitude, c.longitude);
       const coordsText = `${c.latitude}, ${c.longitude}`;
+      const safePinName = escapeHtml(c.pin_name);
       return `
         <div class="odp-cand-card">
           <div class="odp-cand-top">
-            <span class="odp-cand-name clickable-copy" data-copy="${c.pin_name}" title="Klik untuk salin nama ODP">
-              <b>${idx + 1}. ${c.pin_name}</b>
+            <span class="odp-cand-name clickable-copy" data-copy="${safePinName}" title="Klik untuk salin nama ODP">
+              <b>${idx + 1}. ${safePinName}</b>
             </span>
             <span class="odp-dist-badge">📏 ~${c.jarak_meter} m</span>
           </div>
@@ -1144,11 +1164,12 @@ function renderGroupTabs(allGroups = [], activeGroup = 'all', tickets = []) {
       const g = Array.isArray(t.groups) ? t.groups : (typeof t.groups === 'string' && t.groups ? t.groups.split(',').map(s=>s.trim()).filter(Boolean) : []);
       return g.includes(grp);
     }).length;
+    const safeGrp = escapeHtml(grp);
 
     return `
-      <button class="btn-group-tab ${isAct ? 'active' : ''}" data-group="${grp}">
-        <span>📁</span> ${grp} <span class="group-count">${count}</span>
-        <span class="btn-delete-group" data-action="delete-group" data-group="${grp}" title="Hapus grup ${grp}">×</span>
+      <button class="btn-group-tab ${isAct ? 'active' : ''}" data-group="${safeGrp}">
+        <span>📁</span> ${safeGrp} <span class="group-count">${count}</span>
+        <span class="btn-delete-group" data-action="delete-group" data-group="${safeGrp}" title="Hapus grup ${safeGrp}">×</span>
       </button>
     `;
   }).join('');
@@ -1164,17 +1185,20 @@ function modalManageGroups(ticket, allGroups = []) {
     ? `<div style="color:#94a3b8; font-size:0.85rem; padding:10px; text-align:center;">Belum ada grup yang dibuat. Ketik nama grup baru di bawah.</div>`
     : allGroups.map(g => {
         const isChecked = currentGroups.includes(g);
+        const safeG = escapeHtml(g);
         return `
-          <label class="group-select-item ${isChecked ? 'checked' : ''}" data-group-name="${g}">
-            <span>📁 <b>${g}</b></span>
-            <input type="checkbox" name="ticket-group-check" value="${g}" ${isChecked ? 'checked' : ''}>
+          <label class="group-select-item ${isChecked ? 'checked' : ''}" data-group-name="${safeG}">
+            <span>📁 <b>${safeG}</b></span>
+            <input type="checkbox" name="ticket-group-check" value="${safeG}" ${isChecked ? 'checked' : ''}>
           </label>
         `;
       }).join('');
 
+  const safeTicketLabel = escapeHtml(ticket.inc || ticket.inet || '—');
+
   return `
     <h3 class="modal-title">📁 Kelola Grup Tiket</h3>
-    <p class="modal-subtitle">Tiket: <code>${ticket.inc || ticket.inet || '—'}</code></p>
+    <p class="modal-subtitle">Tiket: <code>${safeTicketLabel}</code></p>
     <div style="font-size:0.82rem; color:#64748b; margin-bottom:8px;">Pilih grup untuk tiket ini (bisa lebih dari satu):</div>
     <div class="group-select-list" id="group-select-list">
       ${itemsHtml}

@@ -153,6 +153,7 @@ async function signIn(email, password) {
 
 async function signOut() {
   unsubscribeTickets();
+  unsubscribeGroupBroadcast();
   const { error } = await getClient().auth.signOut();
   if (error) throw error;
 }
@@ -227,6 +228,13 @@ function subscribeToGroupBroadcast(callback) {
   return _groupChannel;
 }
 
+function unsubscribeGroupBroadcast() {
+  if (_groupChannel) {
+    getClient().removeChannel(_groupChannel);
+    _groupChannel = null;
+  }
+}
+
 function broadcastGroupEvent(payload) {
   try {
     if (_groupChannel) {
@@ -253,6 +261,7 @@ export {
   addRemoteGroup,
   deleteRemoteGroup,
   subscribeToGroupBroadcast,
+  unsubscribeGroupBroadcast,
   broadcastGroupEvent,
   signIn,
   signOut,
