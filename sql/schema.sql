@@ -71,15 +71,18 @@ CREATE TRIGGER tickets_updated_at
 
 -- =====================================================
 -- Row Level Security
--- Karena tidak ada auth, buka akses untuk anon key
+-- Khusus pengguna yang sudah login (authenticated)
 -- =====================================================
 ALTER TABLE tickets ENABLE ROW LEVEL SECURITY;
 
--- Policy: izinkan semua operasi untuk anon
-CREATE POLICY "Allow all for anon" ON tickets
+DROP POLICY IF EXISTS "Allow all for anon" ON tickets;
+DROP POLICY IF EXISTS "Authenticated users only on tickets" ON tickets;
+
+CREATE POLICY "Authenticated users only on tickets" ON tickets
   FOR ALL
-  USING (true)
-  WITH CHECK (true);
+  TO authenticated
+  USING (auth.uid() IS NOT NULL)
+  WITH CHECK (auth.uid() IS NOT NULL);
 
 -- =====================================================
 -- Aktifkan Realtime
@@ -106,9 +109,13 @@ CREATE TABLE IF NOT EXISTS ticket_groups (
 
 ALTER TABLE ticket_groups ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Allow all for anon and auth" ON ticket_groups
+DROP POLICY IF EXISTS "Allow all for anon and auth" ON ticket_groups;
+DROP POLICY IF EXISTS "Authenticated users only on ticket_groups" ON ticket_groups;
+
+CREATE POLICY "Authenticated users only on ticket_groups" ON ticket_groups
   FOR ALL
-  USING (true)
-  WITH CHECK (true);
+  TO authenticated
+  USING (auth.uid() IS NOT NULL)
+  WITH CHECK (auth.uid() IS NOT NULL);
 
 ALTER TABLE ticket_groups REPLICA IDENTITY FULL;
