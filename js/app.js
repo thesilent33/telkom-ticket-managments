@@ -2496,15 +2496,10 @@ async function handleScc(ticket) {
     await copyTextToClipboard(script);
     showToast('⚡ Script SCC disalin! Membuka Termux...', 'success', 2500);
 
-    // 3. Launch Termux app di Android (via intent URI)
-    const termuxIntent = 'intent:#Intent;package=com.termux;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;end';
+    // 3. Launch Termux app di Android (via explicit component intent agar tidak lari ke Play Store)
+    const termuxIntent = 'intent:#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;component=com.termux/.app.TermuxActivity;package=com.termux;end';
     try {
-      const a = document.createElement('a');
-      a.href = termuxIntent;
-      a.style.display = 'none';
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => a.remove(), 1000);
+      window.location.href = termuxIntent;
     } catch (err) {
       console.warn('Gagal meluncurkan Termux intent:', err);
     }
