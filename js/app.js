@@ -2,7 +2,7 @@
  * app.js — Main controller: init, event handling, realtime, ukur semua, grup & pin
  */
 
-import { parseTickets } from './parser.js?v=4.3';
+import { parseTickets } from './parser.js?v=4.8';
 import {
   fetchTickets,
   fetchDoneTickets,
@@ -20,9 +20,9 @@ import {
   signOut,
   getAuthSession,
   onAuthStateChange
-} from './supabase-client.js?v=4.3';
-import { ukurRedaman } from './lensa.js?v=4.3';
-import CONFIG from './config.js?v=4.3';
+} from './supabase-client.js?v=4.8';
+import { ukurRedaman } from './lensa.js?v=4.8';
+import CONFIG from './config.js?v=4.8';
 import {
   renderAllTickets, updateCardInPlace, removeCard, insertCard,
   setUkurLoading, showToast, showModal, showInputModal,
@@ -31,8 +31,8 @@ import {
   updateAllTimers, updateStats, getSavedTechnicians, saveTechnicianName,
   getCompactRedamanStatus, getDateRangeBounds, isTicketInDateRange,
   setUiCurrentUser,
-} from './ui.js?v=4.3';
-import { cleanOdpName, fetchNearestOdp, getGoogleMapsUrl, getGoogleMapsDirUrl, getWazeDirUrl } from './odp.js?v=4.3';
+} from './ui.js?v=4.8';
+import { cleanOdpName, fetchNearestOdp, getGoogleMapsUrl, getGoogleMapsDirUrl, getWazeDirUrl } from './odp.js?v=4.8';
 
 // ─── Filter State Storage ─────────────────────────────────────────────────────
 function loadStoredFilterState() {
@@ -2492,16 +2492,9 @@ async function handleScc(ticket) {
     }
     script += ` --auto-speed --image`;
 
-    // 2. Salin ke clipboard
+    // 2. Salin perintah script ke clipboard
     await copyTextToClipboard(script);
-    showToast('⚡ Script SCC disalin! Membuka Termux...', 'success', 2500);
-
-    // 3. Launch Termux app di Android menggunakan skema resmi android-app://
-    try {
-      window.location.href = 'android-app://com.termux';
-    } catch (err) {
-      console.warn('Gagal meluncurkan Termux intent:', err);
-    }
+    showToast(`⚡ Script SCC disalin: ${script}`, 'success', 3000);
   } else {
     // User biasa: Buka web SCC resmi Telkom sesuai tiket & internet
     const inc = ticket.inc || '';

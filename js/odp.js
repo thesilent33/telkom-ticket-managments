@@ -2,7 +2,7 @@
  * odp.js — Integrasi pencarian koordinat ODP & ODP terdekat via n8n webhook
  */
 
-import CONFIG from './config.js?v=4.3';
+import CONFIG from './config.js?v=4.8';
 
 /**
  * Membersihkan format ODP yang panjang menjadi kode unik ODP/ODC

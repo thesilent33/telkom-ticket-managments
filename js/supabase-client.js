@@ -2,7 +2,7 @@
  * supabase-client.js — Supabase CRUD + Realtime subscription
  */
 
-import CONFIG from './config.js?v=4.3';
+import CONFIG from './config.js?v=4.8';
 
 let _supabase = null;
 
