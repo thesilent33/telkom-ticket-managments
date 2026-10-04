@@ -21,7 +21,7 @@ export function escapeHtml(str) {
 }
 
 let _currentAuthUser = null;
-export function setUiCurrentUser(user) {
+function setUiCurrentUser(user) {
   _currentAuthUser = user;
 }
 

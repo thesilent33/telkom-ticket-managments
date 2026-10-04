@@ -2668,4 +2668,8 @@ async function handleManageGroups(ticket) {
 }
 
 // ─── Start ────────────────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', init);
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
