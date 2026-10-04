@@ -56,10 +56,22 @@ async function fetchDoneTickets(startDateIso, endDateIso) {
 
 // ─── Add one or more tickets ─────────────────────────────────────────────────
 async function addTickets(ticketsArray) {
-  const { data, error } = await getClient()
+  let { data, error } = await getClient()
     .from('tickets')
     .insert(ticketsArray)
     .select();
+
+  // Fallback: Jika tabel di Supabase belum memiliki kolom nama
+  if (error && (error.message?.includes('nama') || error.code === 'PGRST204')) {
+    const sanitized = ticketsArray.map(t => {
+      const copy = { ...t };
+      delete copy.nama;
+      return copy;
+    });
+    const retry = await getClient().from('tickets').insert(sanitized).select();
+    if (retry.error) throw retry.error;
+    return retry.data;
+  }
 
   if (error) throw error;
   return data;
@@ -67,12 +79,21 @@ async function addTickets(ticketsArray) {
 
 // ─── Update a ticket ─────────────────────────────────────────────────────────
 async function updateTicket(id, changes) {
-  const { data, error } = await getClient()
+  let { data, error } = await getClient()
     .from('tickets')
     .update(changes)
     .eq('id', id)
     .select()
     .single();
+
+  // Fallback: Jika update gagal karena kolom nama belum ada
+  if (error && changes.nama && (error.message?.includes('nama') || error.code === 'PGRST204')) {
+    const copy = { ...changes };
+    delete copy.nama;
+    const retry = await getClient().from('tickets').update(copy).eq('id', id).select().single();
+    if (retry.error) throw retry.error;
+    return retry.data;
+  }
 
   if (error) throw error;
   return data;

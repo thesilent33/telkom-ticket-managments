@@ -15,8 +15,10 @@ CREATE TABLE IF NOT EXISTS tickets (
   inc           TEXT,                          -- INC53394750
   inet          TEXT,                          -- 172418813613
   odp           TEXT,                          -- ODP-UBN-FAA/32
+  nama          TEXT DEFAULT '',               -- Nama pelanggan
   tier          TEXT DEFAULT 'REGULER',        -- HVC_GOLD | HVC_PLATINUM | HVC_DIAMOND | INDIBIZ | REGULER
   rest          TEXT DEFAULT '',               -- info tambahan
+  groups        TEXT DEFAULT '',               -- grup/folder tiket
 
   -- Timestamp SLA
   reported_at   TIMESTAMPTZ,                   -- dari "Reported Date"
