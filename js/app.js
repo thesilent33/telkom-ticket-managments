@@ -2492,9 +2492,21 @@ async function handleScc(ticket) {
     }
     script += ` --auto-speed --image`;
 
-    // 2. Salin perintah script ke clipboard
+    // 2. Salin perintah script ke clipboard (sebagai backup / fallback)
     await copyTextToClipboard(script);
-    showToast(`⚡ Script SCC disalin: ${script}`, 'success', 3000);
+
+    // 3. Panggil Tasker task "SCC" dengan parameter %par1 (INC) dan %par2 (ODP)
+    const incParam = encodeURIComponent(inc);
+    const odpParam = encodeURIComponent(odpClean);
+    const taskerUrl = `tasker://assistantactions?task=SCC&par1=${incParam}&par2=${odpParam}`;
+
+    showToast(`⚡ Menjalankan SCC di Termux via Tasker...`, 'success', 2500);
+
+    try {
+      window.location.href = taskerUrl;
+    } catch (err) {
+      console.warn('Gagal meluncurkan Tasker:', err);
+    }
   } else {
     // User biasa: Buka web SCC resmi Telkom sesuai tiket & internet
     const inc = ticket.inc || '';
