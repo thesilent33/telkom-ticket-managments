@@ -2,7 +2,7 @@
  * lensa.js — Ukur redaman via n8n webhook
  */
 
-import CONFIG from './config.js';
+import CONFIG from './config.js?v=4.3';
 
 /**
  * ukurRedaman(inet) → hasil ukur dari LENSA

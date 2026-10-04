@@ -2,7 +2,7 @@
  * supabase-client.js — Supabase CRUD + Realtime subscription
  */
 
-import CONFIG from './config.js';
+import CONFIG from './config.js?v=4.3';
 
 let _supabase = null;
 
@@ -166,12 +166,23 @@ async function signOut() {
 }
 
 async function getAuthSession() {
-  const { data, error } = await getClient().auth.getSession();
-  if (error) {
-    console.warn('Error fetching session:', error);
+  try {
+    const { data, error } = await getClient().auth.getSession();
+    if (error || !data?.session) {
+      return null;
+    }
+    // Verifikasi apakah token masih aktif & valid di server Supabase
+    const { data: userData, error: userError } = await getClient().auth.getUser();
+    if (userError || !userData?.user) {
+      console.warn('Sesi login lama tidak valid atau kadaluarsa, reset sesi:', userError);
+      await signOut().catch(() => {});
+      return null;
+    }
+    return data.session;
+  } catch (err) {
+    console.warn('Error fetching session:', err);
     return null;
   }
-  return data.session;
 }
 
 function onAuthStateChange(callback) {

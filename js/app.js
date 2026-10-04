@@ -2,7 +2,7 @@
  * app.js — Main controller: init, event handling, realtime, ukur semua, grup & pin
  */
 
-import { parseTickets } from './parser.js';
+import { parseTickets } from './parser.js?v=4.3';
 import {
   fetchTickets,
   fetchDoneTickets,
@@ -20,9 +20,9 @@ import {
   signOut,
   getAuthSession,
   onAuthStateChange
-} from './supabase-client.js';
-import { ukurRedaman } from './lensa.js';
-import CONFIG from './config.js';
+} from './supabase-client.js?v=4.3';
+import { ukurRedaman } from './lensa.js?v=4.3';
+import CONFIG from './config.js?v=4.3';
 import {
   renderAllTickets, updateCardInPlace, removeCard, insertCard,
   setUkurLoading, showToast, showModal, showInputModal,
@@ -31,8 +31,8 @@ import {
   updateAllTimers, updateStats, getSavedTechnicians, saveTechnicianName,
   getCompactRedamanStatus, getDateRangeBounds, isTicketInDateRange,
   setUiCurrentUser,
-} from './ui.js';
-import { cleanOdpName, fetchNearestOdp, getGoogleMapsUrl, getGoogleMapsDirUrl, getWazeDirUrl } from './odp.js';
+} from './ui.js?v=4.3';
+import { cleanOdpName, fetchNearestOdp, getGoogleMapsUrl, getGoogleMapsDirUrl, getWazeDirUrl } from './odp.js?v=4.3';
 
 // ─── Filter State Storage ─────────────────────────────────────────────────────
 function loadStoredFilterState() {
@@ -475,8 +475,18 @@ async function loadInitialData() {
     updateStats(getGroupTickets(), activeFilter);
     updateUkurAllButton();
   } catch (e) {
-    showToast('❌ Gagal memuat tiket dari Supabase. Cek izin akun & koneksi!', 'error');
-    console.error(e);
+    console.error('Gagal memuat tiket dari Supabase:', e);
+    const msg = (e.message || '').toLowerCase();
+    const isAuthError = msg.includes('jwt') || msg.includes('unauthorized') || msg.includes('token') || e.status === 401 || e.code === 'PGRST301';
+
+    if (isAuthError) {
+      showToast('⚠️ Sesi login telah berakhir. Silakan login kembali.', 'warning');
+      await signOut().catch(() => {});
+      updateAuthUI(null);
+    } else {
+      showToast('❌ Gagal memuat tiket. Periksa koneksi Anda!', 'error');
+      renderCurrentView();
+    }
   } finally {
     showLoading(false);
   }
