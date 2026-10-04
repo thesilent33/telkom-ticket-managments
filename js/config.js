@@ -18,6 +18,7 @@ const CONFIG = {
   // Contoh: https://n8n.domain-kamu.com/webhook/ukur-lensa
   // ----------------------------------------------------------
   N8N_WEBHOOK_URL: 'https://n8n-server.my.id/webhook/ukur-lensa',
+  ODP_WEBHOOK_URL: 'https://n8n-server.my.id/webhook/nearest-odp',
 
   // ----------------------------------------------------------
   // Tier config — warna & label

@@ -11,6 +11,11 @@ import {
   deleteTicket,
   subscribeToTickets,
   unsubscribeTickets,
+  fetchRemoteGroups,
+  addRemoteGroup,
+  deleteRemoteGroup,
+  subscribeToGroupBroadcast,
+  broadcastGroupEvent,
   signIn,
   signOut,
   getAuthSession,
@@ -20,11 +25,12 @@ import { ukurRedaman } from './lensa.js';
 import {
   renderAllTickets, updateCardInPlace, removeCard, insertCard,
   setUkurLoading, showToast, showModal, showInputModal,
-  modalAddTicket, modalDone, modalKendala, modalRekap,
+  modalAddTicket, modalDone, modalKendala, modalRekap, modalOdpCoordinates,
   modalManageGroups, renderGroupTabs,
-  updateAllTimers, updateStats, saveTechnicianName,
+  updateAllTimers, updateStats, getSavedTechnicians, saveTechnicianName,
   getCompactRedamanStatus, getDateRangeBounds, isTicketInDateRange,
 } from './ui.js';
+import { cleanOdpName, fetchNearestOdp, getGoogleMapsUrl, getGoogleMapsDirUrl, getWazeDirUrl } from './odp.js';
 
 // ─── Filter State Storage ─────────────────────────────────────────────────────
 function loadStoredFilterState() {
@@ -157,6 +163,63 @@ async function saveTicketGroups(ticketId, newGroups) {
   } catch (err) {
     // Abaikan jika kolom groups belum ada di DB (data tetap aman di localStorage)
   }
+}
+
+// ─── Clipboard Copy Helper with Visual Feedback ──────────────────────────────
+async function copyTextToClipboard(text, targetEl = null) {
+  if (!text) return false;
+  let copied = false;
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      copied = true;
+    }
+  } catch (e) {
+    // Fallback below
+  }
+
+  if (!copied) {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      ta.style.top = '-9999px';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      copied = document.execCommand('copy');
+      document.body.removeChild(ta);
+    } catch (err) {
+      console.warn('Fallback copy failed', err);
+    }
+  }
+
+  if (targetEl) {
+    targetEl.classList.remove('copy-flash');
+    void targetEl.offsetWidth; // Reflow to re-trigger animation
+    targetEl.classList.add('copy-flash');
+    setTimeout(() => targetEl.classList.remove('copy-flash'), 400);
+  }
+
+  showToast(`📋 ${text} disalin!`, 'info', 1600);
+  return copied;
+}
+
+// ─── Group Synchronization Helper ────────────────────────────────────────────
+function registerNewGroup(name) {
+  if (!name) return false;
+  const trimmed = name.trim();
+  if (!trimmed) return false;
+  if (!customGroups.includes(trimmed)) {
+    customGroups.push(trimmed);
+    saveCustomGroups();
+    addRemoteGroup(trimmed);
+    broadcastGroupEvent({ type: 'create', name: trimmed });
+    renderGroupTabs(customGroups, activeFilter.group, tickets);
+    return true;
+  }
+  return false;
 }
 
 // ─── Helper: Get tickets matching active group & filters ──────────────────────
@@ -376,6 +439,26 @@ async function loadInitialData() {
     const since = bounds ? bounds.start.toISOString() : null;
     tickets = await fetchTickets(since ? { since } : {});
     customGroups = loadStoredCustomGroups();
+
+    // 1. Ambil grup dari tabel remote Supabase (jika tabel tersedia)
+    const remoteGroups = await fetchRemoteGroups();
+    if (Array.isArray(remoteGroups)) {
+      remoteGroups.forEach(g => {
+        if (!customGroups.includes(g)) customGroups.push(g);
+      });
+    }
+
+    // 2. Ekstrak semua nama grup dari tiket yang ada di Supabase
+    tickets.forEach(t => {
+      const gList = Array.isArray(t.groups)
+        ? t.groups
+        : (typeof t.groups === 'string' && t.groups ? t.groups.split(',').map(s => s.trim()).filter(Boolean) : []);
+      gList.forEach(g => {
+        if (!customGroups.includes(g)) customGroups.push(g);
+      });
+    });
+
+    saveCustomGroups();
     mergeGroupsIntoTickets(tickets);
 
     // Pastikan grup aktif masih ada di customGroups
@@ -395,8 +478,30 @@ async function loadInitialData() {
     showLoading(false);
   }
 
-  // Realtime subscription
+  // Realtime subscription data tiket
   subscribeToTickets(handleRealtimeChange);
+
+  // Realtime subscription broadcast perubahan grup antar perangkat
+  subscribeToGroupBroadcast((payload) => {
+    if (!payload) return;
+    if (payload.type === 'create' && payload.name) {
+      if (!customGroups.includes(payload.name)) {
+        customGroups.push(payload.name);
+        saveCustomGroups();
+        renderGroupTabs(customGroups, activeFilter.group, tickets);
+      }
+    } else if (payload.type === 'delete' && payload.name) {
+      customGroups = customGroups.filter(g => g !== payload.name);
+      saveCustomGroups();
+      if (activeFilter.group === payload.name) {
+        activeFilter.group = 'all';
+        saveFilterState();
+      }
+      renderGroupTabs(customGroups, activeFilter.group, tickets);
+      renderCurrentView();
+      updateStats(getGroupTickets(), activeFilter);
+    }
+  });
 
   // Timer: update SLA & waktu ukur setiap 15 detik
   if (!timerInterval) {
@@ -854,8 +959,9 @@ function handleRealtimeChange({ eventType, old: oldRow, new: newRow }) {
   } else if (eventType === 'UPDATE') {
     const idx = tickets.findIndex(t => t.id === newRow.id);
     if (idx !== -1) {
-      newRow.groups = newRow.groups || tickets[idx].groups;
+      newRow.groups = newRow.groups !== undefined ? newRow.groups : tickets[idx].groups;
       newRow.is_pinned = newRow.sort_order === 1 || tickets[idx].is_pinned;
+      mergeGroupsIntoTickets([newRow]);
       tickets[idx] = newRow;
     } else {
       mergeGroupsIntoTickets([newRow]);
@@ -877,8 +983,59 @@ function handleRealtimeChange({ eventType, old: oldRow, new: newRow }) {
   }
 }
 
+// ─── Action: Cek Koordinat ODP & ODP Terdekat ─────────────────────────────────
+async function handleOdpCoordinates(ticket, rawOdp = '') {
+  const odpTarget = rawOdp || ticket?.odp || '';
+  const clean = cleanOdpName(odpTarget);
+  if (!clean) {
+    showToast('⚠️ Nama ODP kosong atau tidak valid', 'warning');
+    return;
+  }
+
+  // Tampilkan modal awal dengan status loading
+  showModal(modalOdpCoordinates({ odpName: odpTarget, cleanName: clean, isLoading: true }), {
+    confirmLabel: 'Tutup',
+    cancelLabel: null
+  });
+
+  try {
+    const result = await fetchNearestOdp(clean);
+    const modalBody = document.querySelector('#modal-box .modal-body');
+    if (modalBody) {
+      modalBody.innerHTML = modalOdpCoordinates({
+        odpName: odpTarget,
+        cleanName: clean,
+        result,
+        isLoading: false
+      });
+    }
+  } catch (err) {
+    console.error('Error fetching ODP coordinates:', err);
+    const modalBody = document.querySelector('#modal-box .modal-body');
+    if (modalBody) {
+      modalBody.innerHTML = modalOdpCoordinates({
+        odpName: odpTarget,
+        cleanName: clean,
+        isLoading: false,
+        error: 'Gagal memuat koordinat: ' + err.message
+      });
+    }
+  }
+}
+
 // ─── Event delegation ─────────────────────────────────────────────────────────
 async function handleClick(e) {
+  // Click-to-copy handler langsung saat disentuh/diklik
+  const copyTarget = e.target.closest('.clickable-copy');
+  if (copyTarget) {
+    e.stopPropagation();
+    const text = copyTarget.dataset.copy || copyTarget.textContent.replace(/^[👤📍📁🌐\s]+/, '').trim();
+    if (text) {
+      copyTextToClipboard(text, copyTarget);
+    }
+    return;
+  }
+
   // Toggle rincian kartu (collapse / expand per card)
   const expandTarget = e.target.closest('[data-action="toggle-card-collapse"]');
   if (expandTarget) {
@@ -940,6 +1097,7 @@ async function handleClick(e) {
     case 'add':           return handleAddTicket();
     case 'pin':           return handlePin(ticket);
     case 'manage-groups': return handleManageGroups(ticket);
+    case 'odp-coords':    return handleOdpCoordinates(ticket, btn.dataset.odp);
   }
 }
 
@@ -1012,10 +1170,8 @@ async function handleAddTicket() {
     getValues: () => {
       const raw = document.getElementById('input-paste')?.value ?? '';
       const pending = document.getElementById('input-modal-add-group')?.value.trim();
-      if (pending && !customGroups.includes(pending)) {
-        customGroups.push(pending);
-        saveCustomGroups();
-        renderGroupTabs(customGroups, activeFilter.group, tickets);
+      if (pending) {
+        registerNewGroup(pending);
       }
 
       const checked = Array.from(document.querySelectorAll('input[name="add-ticket-group-check"]:checked'))
@@ -1045,11 +1201,7 @@ async function handleAddTicket() {
       const addGroupItem = (name) => {
         const trimmed = name.trim();
         if (!trimmed) return;
-        if (!customGroups.includes(trimmed)) {
-          customGroups.push(trimmed);
-          saveCustomGroups();
-          renderGroupTabs(customGroups, activeFilter.group, tickets);
-        }
+        registerNewGroup(trimmed);
 
         const emptyMsg = document.getElementById('modal-add-group-empty');
         if (emptyMsg) emptyMsg.style.display = 'none';
@@ -1185,6 +1337,13 @@ async function handleAddTicket() {
   }
 
   try {
+    if (selectedGroups.length > 0) {
+      const groupStr = selectedGroups.join(',');
+      validTickets.forEach(t => {
+        t.groups = groupStr;
+      });
+    }
+
     const inserted = await addTickets(validTickets);
     if (inserted) {
       for (const t of inserted) {
@@ -1660,10 +1819,9 @@ async function handleBatchDone() {
 
   selectedBatchIds.clear();
   showLoading(false);
+  setBatchMode(false);
   renderGroupTabs(customGroups, activeFilter.group, tickets);
   updateStats(getGroupTickets(), activeFilter);
-  updateBatchActionBar();
-  renderCurrentView();
   showToast(`✅ ${successCount} dari ${count} tiket berhasil ditandai Selesai!`, 'success');
 }
 
@@ -1718,10 +1876,7 @@ async function handleBatchGroup() {
 
       const pending = document.getElementById('input-modal-batch-group')?.value.trim();
       if (pending) {
-        if (!customGroups.includes(pending)) {
-          customGroups.push(pending);
-          saveCustomGroups();
-        }
+        registerNewGroup(pending);
         if (!checkedGroups.includes(pending)) checkedGroups.push(pending);
       }
 
@@ -1769,11 +1924,7 @@ async function handleBatchGroup() {
   const addGroupItem = (name) => {
     const trimmed = name.trim();
     if (!trimmed) return;
-    if (!customGroups.includes(trimmed)) {
-      customGroups.push(trimmed);
-      saveCustomGroups();
-      renderGroupTabs(customGroups, activeFilter.group, tickets);
-    }
+    registerNewGroup(trimmed);
 
     const emptyMsg = document.getElementById('modal-batch-group-empty');
     if (emptyMsg) emptyMsg.style.display = 'none';
@@ -2360,9 +2511,7 @@ function handleCreateNewGroup() {
     showToast(`⚠️ Grup "${trimmed}" sudah ada.`, 'warning');
     return;
   }
-  customGroups.push(trimmed);
-  saveCustomGroups();
-  renderGroupTabs(customGroups, activeFilter.group, tickets);
+  registerNewGroup(trimmed);
   showToast(`✅ Grup "${trimmed}" berhasil dibuat!`, 'success');
 }
 
@@ -2374,6 +2523,8 @@ function handleDeleteGroup(groupName) {
   }
   customGroups = customGroups.filter(g => g !== groupName);
   saveCustomGroups();
+  deleteRemoteGroup(groupName);
+  broadcastGroupEvent({ type: 'delete', name: groupName });
 
   // Bersihkan tag grup ini dari tiket-tiket terkait
   tickets.forEach(t => {
@@ -2434,11 +2585,7 @@ async function handleManageGroups(ticket) {
   const addGroupItem = (name) => {
     const trimmed = name.trim();
     if (!trimmed) return;
-    if (!customGroups.includes(trimmed)) {
-      customGroups.push(trimmed);
-      saveCustomGroups();
-      renderGroupTabs(customGroups, activeFilter.group, tickets);
-    }
+    registerNewGroup(trimmed);
 
     const existing = document.querySelector(`.group-select-item[data-group-name="${trimmed}"]`);
     if (existing) {

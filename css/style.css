@@ -2463,3 +2463,304 @@ body.batch-mode-active #tickets-container {
   line-height: 1.4;
   margin-top: -4px;
 }
+
+/* ── Clickable Copy Elements & Feedback Animation ───────────────── */
+.clickable-copy {
+  cursor: pointer;
+  position: relative;
+  transition: all 0.15s ease;
+  user-select: all;
+  -webkit-user-select: all;
+}
+
+.clickable-copy:hover {
+  filter: brightness(0.92);
+  text-decoration: underline dotted 1px;
+}
+
+.clickable-copy:active {
+  transform: scale(0.97);
+}
+
+@keyframes copyFlashAnim {
+  0% {
+    background-color: #86efac !important;
+    color: #064e3b !important;
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.4);
+  }
+  100% {
+    background-color: inherit;
+    box-shadow: none;
+  }
+}
+
+.clickable-copy.copy-flash {
+  animation: copyFlashAnim 0.35s ease-out;
+}
+
+/* ── ODP Inline Container & Quick Action Button ──────────────────── */
+.odp-container {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #f0fdfa;
+  border: 1px solid #ccfbf1;
+  padding: 1px 6px;
+  border-radius: 6px;
+}
+
+.odp-text {
+  color: #0f766e;
+  font-weight: 600;
+}
+
+.btn-odp-coords {
+  background: #0d9488;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.btn-odp-coords:hover {
+  background: #0f766e;
+  transform: scale(1.1);
+}
+
+.btn-odp-coords:active {
+  transform: scale(0.95);
+}
+
+/* ── ODP Coordinates Modal Styles ───────────────────────────────── */
+.odp-modal-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 28px 16px;
+  text-align: center;
+  color: #64748b;
+  font-size: 0.88rem;
+  gap: 12px;
+}
+
+.odp-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #e2e8f0;
+  border-top-color: #0d9488;
+  border-radius: 50%;
+  animation: odpSpin 0.75s linear infinite;
+}
+
+@keyframes odpSpin {
+  to { transform: rotate(360deg); }
+}
+
+.odp-modal-alert {
+  background: #fffbeb;
+  border: 1.5px solid #fef3c7;
+  color: #b45309;
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.odp-target-box {
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 14px;
+}
+
+.odp-target-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.odp-target-label {
+  font-size: 0.92rem;
+  color: #1e293b;
+}
+
+.odp-status-pill {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  text-transform: uppercase;
+}
+.odp-status-pill.success {
+  background: #dcfce7;
+  color: #15803d;
+}
+.odp-status-pill.info {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.odp-target-coords {
+  font-size: 0.82rem;
+  color: #475569;
+  margin-bottom: 10px;
+  padding: 4px 8px;
+  background: white;
+  border: 1px dashed #cbd5e1;
+  border-radius: 6px;
+  display: inline-block;
+}
+
+.odp-target-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.btn-odp-nav {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: 7px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+}
+
+.btn-odp-nav.maps {
+  background: #4f46e5;
+  color: white;
+}
+.btn-odp-nav.maps:hover { background: #4338ca; }
+
+.btn-odp-nav.route {
+  background: #0284c7;
+  color: white;
+}
+.btn-odp-nav.route:hover { background: #0369a1; }
+
+.btn-odp-nav.waze {
+  background: #06b6d4;
+  color: white;
+}
+.btn-odp-nav.waze:hover { background: #0891b2; }
+
+.btn-odp-nav.copy {
+  background: #f1f5f9;
+  color: #334155;
+  border-color: #cbd5e1;
+}
+.btn-odp-nav.copy:hover { background: #e2e8f0; }
+
+.odp-candidates-container {
+  margin-top: 10px;
+}
+
+.odp-candidates-header {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #334155;
+  margin-bottom: 8px;
+}
+
+.odp-candidates-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.odp-cand-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: border-color 0.15s ease;
+}
+
+.odp-cand-card:hover {
+  border-color: #0d9488;
+}
+
+.odp-cand-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.odp-cand-name {
+  font-size: 0.82rem;
+  color: #0f766e;
+}
+
+.odp-dist-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: #ecfeff;
+  color: #0e7490;
+  border: 1px solid #a5f3fc;
+  padding: 1px 6px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.odp-cand-coords {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.odp-cand-links {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.btn-cand-pill {
+  padding: 3px 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border-radius: 5px;
+  text-decoration: none;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #334155;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  transition: all 0.12s ease;
+}
+
+.btn-cand-pill:hover {
+  background: #e2e8f0;
+}
+
+.btn-cand-pill.maps:hover { background: #e0e7ff; color: #4338ca; border-color: #c7d2fe; }
+.btn-cand-pill.route:hover { background: #e0f2fe; color: #0369a1; border-color: #bae6fd; }
+.btn-cand-pill.waze:hover { background: #ecfeff; color: #0e7490; border-color: #a5f3fc; }
+

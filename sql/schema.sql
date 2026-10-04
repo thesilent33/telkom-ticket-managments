@@ -94,6 +94,21 @@ ALTER TABLE tickets REPLICA IDENTITY FULL;
 
 -- =====================================================
 -- Fitur Tambahan (Grup & Custom Lists)
--- Jalankan query di bawah jika ingin grup tersinkron multi-perangkat via Supabase:
+-- Sinkronisasi grup multi-perangkat via Supabase
 -- =====================================================
--- ALTER TABLE tickets ADD COLUMN IF NOT EXISTS groups TEXT DEFAULT '';
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS groups TEXT DEFAULT '';
+
+CREATE TABLE IF NOT EXISTS ticket_groups (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name        TEXT UNIQUE NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE ticket_groups ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow all for anon and auth" ON ticket_groups
+  FOR ALL
+  USING (true)
+  WITH CHECK (true);
+
+ALTER TABLE ticket_groups REPLICA IDENTITY FULL;

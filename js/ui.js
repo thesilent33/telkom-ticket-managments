@@ -5,6 +5,7 @@
 import CONFIG from './config.js';
 import { generateRekap } from './parser.js';
 import { formatRedamanSummary } from './lensa.js';
+import { cleanOdpName, getGoogleMapsUrl, getGoogleMapsDirUrl, getWazeDirUrl } from './odp.js';
 
 // ─── SLA Timer helpers ────────────────────────────────────────────────────────
 
@@ -344,10 +345,10 @@ function renderTicketCard(ticket, isCompact = true, isBatch = false, isSelected 
     ? `<span class="sla-timer ${sla.className}" data-id="${ticket.id}" data-reported="${ticket.reported_at}" data-deadline="${ticket.sla_deadline ?? ''}">⏱️ ${sla.label}</span>`
     : '';
 
-  const namaStr  = ticket.nama ? `<span class="customer-name" title="Nama Pelanggan">👤 ${ticket.nama}</span> <span class="separator">·</span> ` : '';
-  const incStr   = ticket.inc  ? `<code class="inc-code">${ticket.inc}</code>`   : '—';
-  const inetStr  = ticket.inet ? `<code class="inet-code">${ticket.inet}</code>` : '—';
-  const odpStr   = ticket.odp  ? `<span class="odp-text">${ticket.odp}</span>`   : '';
+  const namaStr  = ticket.nama ? `<span class="customer-name clickable-copy" data-copy="${ticket.nama}" title="Klik / sentuh untuk salin nama pelanggan">👤 ${ticket.nama}</span> <span class="separator">·</span> ` : '';
+  const incStr   = ticket.inc  ? `<code class="inc-code clickable-copy" data-copy="${ticket.inc}" title="Klik / sentuh untuk salin nomor INC">${ticket.inc}</code>`   : '—';
+  const inetStr  = ticket.inet ? `<code class="inet-code clickable-copy" data-copy="${ticket.inet}" title="Klik / sentuh untuk salin No Internet">${ticket.inet}</code>` : '—';
+  const odpStr   = ticket.odp  ? `<span class="odp-container"><span class="odp-text clickable-copy" data-copy="${ticket.odp}" title="Klik / sentuh untuk salin ODP">📍 ${ticket.odp}</span><button class="btn-odp-coords" data-action="odp-coords" data-odp="${ticket.odp}" data-id="${ticket.id}" title="Cek titik koordinat ODP & ODP terdekat" aria-label="Koordinat ODP">🌐</button></span>` : '';
   const restStr  = ticket.rest ? `<span class="rest-text"> · ${ticket.rest}</span>` : '';
   const teknisi  = ticket.teknisi || '—';
 
@@ -810,6 +811,129 @@ function modalRekap(ticket) {
     </button>`;
 }
 
+// ─── Modal: ODP Coordinates & Nearest ODPs ────────────────────────────────────
+
+function modalOdpCoordinates({ odpName, cleanName, result, isLoading, error }) {
+  const displayTarget = cleanName || odpName || 'ODP';
+
+  if (isLoading) {
+    return `
+      <h3 class="modal-title">📍 Koordinat ODP & ODP Terdekat</h3>
+      <p class="modal-subtitle">Mencari data untuk <code>${displayTarget}</code></p>
+      <div class="odp-modal-loading">
+        <div class="odp-spinner"></div>
+        <p>Menghubungkan ke database alpro & mencari ODP terdekat...</p>
+      </div>
+    `;
+  }
+
+  if (error || (result && !result.success)) {
+    const errorMsg = result?.message || error || `ODP "${displayTarget}" tidak ditemukan di database.`;
+    const gmapsSearchUrl = getGoogleMapsUrl(displayTarget);
+    return `
+      <h3 class="modal-title">📍 Koordinat ODP & ODP Terdekat</h3>
+      <p class="modal-subtitle">Target: <code>${displayTarget}</code></p>
+      <div class="odp-modal-alert">
+        <span>⚠️ ${errorMsg}</span>
+      </div>
+      <div class="odp-modal-fallback" style="margin-top: 14px; text-align: center;">
+        <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 10px;">Anda dapat mencari lokasi ODP ini langsung melalui Google Maps:</p>
+        <a href="${gmapsSearchUrl}" target="_blank" rel="noopener noreferrer" class="btn-odp-nav maps" style="display: inline-flex; justify-content: center; width: 100%; padding: 10px 14px; text-decoration: none;">
+          🗺️ Cari "${displayTarget}" di Google Maps
+        </a>
+      </div>
+    `;
+  }
+
+  const target = result.target || displayTarget;
+  const targetLat = result.target_latitude;
+  const targetLon = result.target_longitude;
+  const candidates = Array.isArray(result.candidates) ? result.candidates : [];
+
+  let targetSection = '';
+  if (targetLat && targetLon) {
+    const mapsUrl = getGoogleMapsUrl(targetLat, targetLon);
+    const dirUrl = getGoogleMapsDirUrl(targetLat, targetLon);
+    const wazeUrl = getWazeDirUrl(targetLat, targetLon);
+    const coordsText = `${targetLat}, ${targetLon}`;
+    targetSection = `
+      <div class="odp-target-box">
+        <div class="odp-target-header">
+          <span class="odp-target-label">📌 Target: <b class="clickable-copy" data-copy="${target}" title="Salin target">${target}</b></span>
+          <span class="odp-status-pill success">✅ Ditemukan</span>
+        </div>
+        <div class="odp-target-coords">
+          <span class="clickable-copy" data-copy="${coordsText}" title="Klik untuk salin koordinat">🌐 <code>${coordsText}</code></span>
+        </div>
+        <div class="odp-target-actions">
+          <a href="${mapsUrl}" target="_blank" rel="noopener noreferrer" class="btn-odp-nav maps">🗺️ Maps</a>
+          <a href="${dirUrl}" target="_blank" rel="noopener noreferrer" class="btn-odp-nav route">🚗 Rute</a>
+          <a href="${wazeUrl}" target="_blank" rel="noopener noreferrer" class="btn-odp-nav waze">🚙 Waze</a>
+          <button type="button" class="btn-odp-nav copy clickable-copy" data-copy="${coordsText}" title="Salin Koordinat">📋 Salin</button>
+        </div>
+      </div>
+    `;
+  } else {
+    const searchUrl = getGoogleMapsUrl(target);
+    targetSection = `
+      <div class="odp-target-box">
+        <div class="odp-target-header">
+          <span class="odp-target-label">📌 Target: <b class="clickable-copy" data-copy="${target}" title="Salin target">${target}</b></span>
+          <span class="odp-status-pill info">📍 Alpro</span>
+        </div>
+        <div class="odp-target-actions" style="margin-top: 8px;">
+          <a href="${searchUrl}" target="_blank" rel="noopener noreferrer" class="btn-odp-nav maps" style="flex: 1;">🗺️ Buka di Google Maps</a>
+        </div>
+      </div>
+    `;
+  }
+
+  let candidatesSection = '';
+  if (candidates.length > 0) {
+    const itemsHtml = candidates.map((c, idx) => {
+      const cMapsUrl = getGoogleMapsUrl(c.latitude, c.longitude);
+      const cDirUrl = getGoogleMapsDirUrl(c.latitude, c.longitude);
+      const cWazeUrl = getWazeDirUrl(c.latitude, c.longitude);
+      const coordsText = `${c.latitude}, ${c.longitude}`;
+      return `
+        <div class="odp-cand-card">
+          <div class="odp-cand-top">
+            <span class="odp-cand-name clickable-copy" data-copy="${c.pin_name}" title="Klik untuk salin nama ODP">
+              <b>${idx + 1}. ${c.pin_name}</b>
+            </span>
+            <span class="odp-dist-badge">📏 ~${c.jarak_meter} m</span>
+          </div>
+          <div class="odp-cand-coords clickable-copy" data-copy="${coordsText}" title="Klik untuk salin koordinat">
+            <code>${coordsText}</code>
+          </div>
+          <div class="odp-cand-links">
+            <a href="${cMapsUrl}" target="_blank" rel="noopener noreferrer" class="btn-cand-pill maps" title="Lihat Lokasi">🗺️ Maps</a>
+            <a href="${cDirUrl}" target="_blank" rel="noopener noreferrer" class="btn-cand-pill route" title="Rute Arah">🚗 Rute</a>
+            <a href="${cWazeUrl}" target="_blank" rel="noopener noreferrer" class="btn-cand-pill waze" title="Navigasi Waze">🚙 Waze</a>
+            <button type="button" class="btn-cand-pill copy clickable-copy" data-copy="${coordsText}" title="Salin Koordinat">📋 Salin</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    candidatesSection = `
+      <div class="odp-candidates-container">
+        <div class="odp-candidates-header">🔄 <b>${candidates.length} ODP Terdekat di Sekitar Target:</b></div>
+        <div class="odp-candidates-list">
+          ${itemsHtml}
+        </div>
+      </div>
+    `;
+  }
+
+  return `
+    <h3 class="modal-title">📍 Titik Koordinat ODP</h3>
+    <p class="modal-subtitle">Navigasi lokasi & daftar ODP terdekat</p>
+    ${targetSection}
+    ${candidatesSection}
+  `;
+}
+
 // ─── Update SLA timers (dipanggil setiap menit) ───────────────────────────────
 
 function updateAllTimers(allTickets = []) {
@@ -1076,6 +1200,7 @@ export {
   modalDone,
   modalKendala,
   modalRekap,
+  modalOdpCoordinates,
   modalManageGroups,
   renderGroupTabs,
   updateAllTimers,

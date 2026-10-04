@@ -172,6 +172,75 @@ function onAuthStateChange(callback) {
   });
 }
 
+// ─── Remote Groups Synchronization ──────────────────────────────────────────
+async function fetchRemoteGroups() {
+  try {
+    const { data, error } = await getClient()
+      .from('ticket_groups')
+      .select('name')
+      .order('created_at', { ascending: true });
+    if (error) return null;
+    return (data || []).map(r => r.name);
+  } catch (err) {
+    return null;
+  }
+}
+
+async function addRemoteGroup(name) {
+  if (!name || !name.trim()) return;
+  try {
+    await getClient()
+      .from('ticket_groups')
+      .insert([{ name: name.trim() }]);
+  } catch (err) {
+    // Abaikan jika tabel belum ada atau nama sudah ada
+  }
+}
+
+async function deleteRemoteGroup(name) {
+  if (!name) return;
+  try {
+    await getClient()
+      .from('ticket_groups')
+      .delete()
+      .eq('name', name);
+  } catch (err) {
+    // Abaikan jika tabel belum ada
+  }
+}
+
+// ─── Realtime Broadcast for Cross-Device Group Sync ──────────────────────────
+let _groupChannel = null;
+
+function subscribeToGroupBroadcast(callback) {
+  if (_groupChannel) {
+    getClient().removeChannel(_groupChannel);
+  }
+  _groupChannel = getClient()
+    .channel('app-group-sync')
+    .on('broadcast', { event: 'group_change' }, (payload) => {
+      if (callback && payload?.payload) {
+        callback(payload.payload);
+      }
+    })
+    .subscribe();
+  return _groupChannel;
+}
+
+function broadcastGroupEvent(payload) {
+  try {
+    if (_groupChannel) {
+      _groupChannel.send({
+        type: 'broadcast',
+        event: 'group_change',
+        payload
+      });
+    }
+  } catch (err) {
+    console.warn('Broadcast group event failed:', err);
+  }
+}
+
 export {
   fetchTickets,
   fetchDoneTickets,
@@ -180,8 +249,14 @@ export {
   deleteTicket,
   subscribeToTickets,
   unsubscribeTickets,
+  fetchRemoteGroups,
+  addRemoteGroup,
+  deleteRemoteGroup,
+  subscribeToGroupBroadcast,
+  broadcastGroupEvent,
   signIn,
   signOut,
   getAuthSession,
   onAuthStateChange,
 };
+
